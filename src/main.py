@@ -303,7 +303,7 @@ class HTMLMergerApp(QMainWindow):
         self.left_layout.addWidget(hf_label)
 
         hf_input_layout = QHBoxLayout()
-        self.input_author = QLineEdit("F.R.Gerung") # Default value
+        self.input_author = QLineEdit("F. R. Gerung") # Default value
         self.input_author.setPlaceholderText("Masukkan teks/penulis...")
         
         self.combo_hf_pos = QComboBox()
