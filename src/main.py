@@ -332,10 +332,10 @@ class HTMLMergerApp(QMainWindow):
         
         self.combo_bab_style = QComboBox()
         self.combo_bab_style.addItems([
+            "Minimalis Elegan",
             "Klasik Tengah (Default)", 
             "Modern Kiri (Garis Bawah)", 
-            "Blok Latar Warna", 
-            "Minimalis Elegan"
+            "Blok Latar Warna"
         ])
         
         self.spin_bab_size = QSpinBox()
