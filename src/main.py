@@ -340,7 +340,7 @@ class HTMLMergerApp(QMainWindow):
         
         self.spin_bab_size = QSpinBox()
         self.spin_bab_size.setRange(16, 100)
-        self.spin_bab_size.setValue(38) # Default
+        self.spin_bab_size.setValue(16) # Default
         self.spin_bab_size.setSuffix(" pt")
         
         bab_inputs.addWidget(QLabel("Tema BAB:"))
