@@ -128,11 +128,11 @@ class HTMLMergerApp(QMainWindow):
         # ==========================================
 
         # --------------------------------------------------
-        # 1. BAGIAN EKSEKUSI & OUTPUT (DIPINDAHKAN KE PALING ATAS AGAR SELALU TERLIHAT)
+        # 1. BAGIAN EKSEKUSI & OUTPUT
         # --------------------------------------------------
         action_title = QLabel("Proses Eksekusi & Nama Output:")
         action_title.setObjectName("sectionLabel")
-        action_title.setStyleSheet("color: #e74c3c; font-size: 15px;") # Beri warna agak merah agar mencolok
+        action_title.setStyleSheet("color: #e74c3c; font-size: 15px;")
         self.left_layout.addWidget(action_title)
         
         self.action_layout = QHBoxLayout()
@@ -165,8 +165,6 @@ class HTMLMergerApp(QMainWindow):
         line.setFrameShadow(QFrame.Shadow.Sunken)
         line.setStyleSheet("background-color: #dcdde1; margin-top: 5px; margin-bottom: 10px;")
         self.left_layout.addWidget(line)
-        # --------------------------------------------------
-
         
         # 2. Ukuran Kertas PDF
         self.size_layout = QHBoxLayout()
@@ -204,7 +202,6 @@ class HTMLMergerApp(QMainWindow):
         self.preset_layout.addStretch()
         self.left_layout.addLayout(self.preset_layout)
 
-        # Kotak Input Manual
         self.custom_margin_widget = QWidget()
         self.custom_margin_layout = QHBoxLayout(self.custom_margin_widget)
         self.custom_margin_layout.setContentsMargins(0, 0, 0, 0)
@@ -247,7 +244,6 @@ class HTMLMergerApp(QMainWindow):
         self.cover_layout.addStretch()
         self.left_layout.addLayout(self.cover_layout)
 
-        # Input dinamis untuk Cover
         self.cover_input_layout = QHBoxLayout()
         self.btn_select_cover = QPushButton("Pilih HTML Cover")
         self.btn_select_cover.setObjectName("btnInfo")
@@ -281,7 +277,7 @@ class HTMLMergerApp(QMainWindow):
         self.btn_select_cover.clicked.connect(self.select_cover_file)
         self.btn_select_image.clicked.connect(self.select_cover_image)
 
-        # 5. Bagian Opsi Tambahan (Checklist)
+        # 5. Bagian Opsi Tambahan
         self.options_layout = QVBoxLayout() 
         self.options_layout.setSpacing(4)
         
@@ -294,23 +290,21 @@ class HTMLMergerApp(QMainWindow):
         self.options_layout.addWidget(self.cb_page_numbers)
         self.left_layout.addLayout(self.options_layout)
 
-        # ==================================================
         # 6. Pengaturan Header / Footer (Penulis)
-        # ==================================================
         self.hf_layout = QVBoxLayout()
         hf_label = QLabel("Pengaturan Teks / Penulis (Khusus PDF):")
         hf_label.setObjectName("sectionLabel")
         self.left_layout.addWidget(hf_label)
 
         hf_input_layout = QHBoxLayout()
-        self.input_author = QLineEdit("F. R. Gerung") # Default value
+        self.input_author = QLineEdit("F. R. Gerung") 
         self.input_author.setPlaceholderText("Masukkan teks/penulis...")
         
         self.combo_hf_pos = QComboBox()
-        self.combo_hf_pos.addItems(["Header", "Footer"]) # Default Header
+        self.combo_hf_pos.addItems(["Header", "Footer"]) 
         
         self.combo_hf_align = QComboBox()
-        self.combo_hf_align.addItems(["Kiri", "Tengah", "Kanan"]) # Default Kiri
+        self.combo_hf_align.addItems(["Kiri", "Tengah", "Kanan"]) 
         
         hf_input_layout.addWidget(QLabel("Teks:"))
         hf_input_layout.addWidget(self.input_author)
@@ -320,9 +314,7 @@ class HTMLMergerApp(QMainWindow):
         self.hf_layout.addLayout(hf_input_layout)
         self.left_layout.addLayout(self.hf_layout)
 
-        # ==================================================
         # 7. Pengaturan Gaya Visual Penulisan BAB
-        # ==================================================
         self.bab_style_layout = QVBoxLayout()
         bab_style_label = QLabel("Pengaturan Visual Judul BAB (Jika Aktif):")
         bab_style_label.setObjectName("sectionLabel")
@@ -340,7 +332,7 @@ class HTMLMergerApp(QMainWindow):
         
         self.spin_bab_size = QSpinBox()
         self.spin_bab_size.setRange(16, 100)
-        self.spin_bab_size.setValue(16) # Default
+        self.spin_bab_size.setValue(16) 
         self.spin_bab_size.setSuffix(" pt")
         
         bab_inputs.addWidget(QLabel("Tema BAB:"))
@@ -351,6 +343,38 @@ class HTMLMergerApp(QMainWindow):
         
         self.bab_style_layout.addLayout(bab_inputs)
         self.left_layout.addLayout(self.bab_style_layout)
+
+        # ==================================================
+        # 7B. Pengaturan Visual Judul File (Materi)
+        # ==================================================
+        self.materi_style_layout = QVBoxLayout()
+        materi_style_label = QLabel("Pengaturan Visual Judul File (Materi):")
+        materi_style_label.setObjectName("sectionLabel")
+        self.left_layout.addWidget(materi_style_label)
+
+        materi_inputs = QHBoxLayout()
+        
+        self.combo_materi_style = QComboBox()
+        self.combo_materi_style.addItems([
+            "Miring (Italic)", 
+            "Normal", 
+            "Tebal (Bold)", 
+            "Tebal & Miring"
+        ])
+        
+        self.spin_materi_size = QSpinBox()
+        self.spin_materi_size.setRange(8, 36)
+        self.spin_materi_size.setValue(12) # Default disetel lebih kecil
+        self.spin_materi_size.setSuffix(" pt")
+        
+        materi_inputs.addWidget(QLabel("Gaya Teks:"))
+        materi_inputs.addWidget(self.combo_materi_style)
+        materi_inputs.addWidget(QLabel("Ukuran Font:"))
+        materi_inputs.addWidget(self.spin_materi_size)
+        materi_inputs.addStretch()
+        
+        self.materi_style_layout.addLayout(materi_inputs)
+        self.left_layout.addLayout(self.materi_style_layout)
 
         # 8. Manajemen JSON untuk Judul & BAB
         self.json_layout = QVBoxLayout()
@@ -380,7 +404,6 @@ class HTMLMergerApp(QMainWindow):
         
         self.left_layout.addLayout(self.json_layout)
         
-        # Mendorong seluruh isi left_layout ke atas agar rapat
         self.left_layout.addStretch() 
 
         # Connect signals
@@ -675,7 +698,6 @@ class HTMLMergerApp(QMainWindow):
                     margin: {m_top}mm {m_right}mm {m_bottom}mm {m_left}mm;
             """
             
-            # Rendering Header/Footer & Nomor Halaman
             author_text = self.input_author.text().strip()
             if author_text:
                 pos = "top" if self.combo_hf_pos.currentText() == "Header" else "bottom"
@@ -741,7 +763,7 @@ class HTMLMergerApp(QMainWindow):
         if self.cb_toc.isChecked():
             toc_html += "<div class='toc-container'>\n    <h1>Daftar Isi</h1>\n    <ul class='toc-list'>\n"
 
-        # --- 4. RENDER ISI & STYLING BAB ---
+        # --- 4. RENDER ISI & STYLING ---
         body_html = ""
         self.progress_bar.show()
         self.progress_bar.setRange(0, count)
@@ -752,6 +774,13 @@ class HTMLMergerApp(QMainWindow):
         # Ambil setelan gaya penulisan BAB
         bab_style_mode = self.combo_bab_style.currentText()
         bab_font_size = self.spin_bab_size.value()
+
+        # Ambil setelan gaya penulisan Materi
+        materi_font_size = self.spin_materi_size.value()
+        materi_style_text = self.combo_materi_style.currentText()
+        
+        m_font_style = "italic" if "Miring" in materi_style_text else "normal"
+        m_font_weight = "bold" if "Tebal" in materi_style_text else "normal"
 
         for i, file_path in enumerate(items):
             file_name = os.path.basename(file_path)
@@ -769,7 +798,6 @@ class HTMLMergerApp(QMainWindow):
                 if is_pdf and not is_first_body_item:
                     body_html += "    <div class='page-break'></div>\n"
                 
-                # Menentukan CSS HTML untuk BAB berdasarkan pilihan Tema
                 if "Modern Kiri" in bab_style_mode:
                     body_html += f"""
                     <div class='bab-container' id='{bab_id}' style='margin-top: 15%; margin-bottom: 50px; text-align: left; border-bottom: 4px solid #2980b9; padding-bottom: 15px;'>
@@ -788,7 +816,7 @@ class HTMLMergerApp(QMainWindow):
                         <h1 style='font-size: {bab_font_size}pt; color: #333; font-weight: normal; letter-spacing: 5px; text-transform: uppercase; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; padding: 25px 0;'>{bab_title}</h1>
                     </div>
                     """
-                else: # Klasik Tengah (Default)
+                else: 
                     body_html += f"""
                     <div class='bab-container' id='{bab_id}' style='text-align: center; margin-top: 30%; margin-bottom: 50px;'>
                         <h1 style='font-size: {bab_font_size}pt; color: #000; margin: 0;'>{bab_title}</h1>
@@ -813,7 +841,8 @@ class HTMLMergerApp(QMainWindow):
                 content = str(body_content.decode_contents()) if body_content else str(soup)
                 
                 body_html += f"    <div class='section-container' id='{element_id}'>\n"
-                body_html += f"        <h2>Materi: {display_title}</h2>\n"
+                # Implementasi Pengaturan Visual Judul Materi
+                body_html += f"        <div style='font-size: {materi_font_size}pt; font-style: {m_font_style}; font-weight: {m_font_weight}; color: #555; margin-bottom: 15px;'>Materi: {display_title}</div>\n"
                 body_html += content
                 body_html += "\n    </div>\n"
             
