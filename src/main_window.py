@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
                              QLabel, QLineEdit, QMessageBox, QCheckBox, QProgressBar,
                              QComboBox, QRadioButton, QButtonGroup, QScrollArea, 
                              QSpinBox, QFrame, QApplication, QDialog, QDialogButtonBox, 
-                             QSizePolicy)
+                             QSizePolicy, QTextEdit)
                              
 from styles import get_modern_theme
 from pdf_worker import PDFWorker
@@ -458,9 +458,15 @@ class HTMLMergerApp(QMainWindow):
         self.btn_export_json.setObjectName("btnDarkGray")
         self.btn_load_json = QPushButton("2. Muat Judul JSON")
         self.btn_load_json.setObjectName("btnDarkGray")
+
+        # --- KODE BARU DIMULAI DI SINI ---
+        self.btn_ai_json = QPushButton("3. Buat JSON via AI Chat (Copy/Paste)")
+        self.btn_ai_json.setObjectName("btnBlue")
+        # --- KODE BARU BERAKHIR DI SINI ---
         
         l_json.addWidget(self.btn_export_json)
         l_json.addWidget(self.btn_load_json)
+        l_json.addWidget(self.btn_ai_json) # Tambahkan tombol baru ke layout
         
         self.left_layout.addWidget(self.card_json)
         
@@ -541,6 +547,7 @@ class HTMLMergerApp(QMainWindow):
         self.btn_clear.clicked.connect(self.clear_all)
         self.btn_export_json.clicked.connect(self.export_json_template)
         self.btn_load_json.clicked.connect(self.load_json_titles)
+        self.btn_ai_json.clicked.connect(self.show_ai_prompt_dialog) # Koneksi baru
 
     def add_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Pilih Folder")
@@ -632,6 +639,130 @@ class HTMLMergerApp(QMainWindow):
         file_path, _ = QFileDialog.getOpenFileName(self, "Pilih File JSON", start_dir, "JSON Files (*.json)")
         if file_path: self._process_json_file(file_path, show_message=True)
 
+    def show_ai_prompt_dialog(self):
+        count = self.file_list.count()
+        if count == 0:
+            QMessageBox.warning(self, "Peringatan", "Tambahkan file HTML materi terlebih dahulu ke daftar sebelum membuat struktur JSON!")
+            return
+
+        # Ambil semua nama file yang ada di list aplikasi saat ini
+        file_names = [os.path.basename(self.file_list.item(i).text()) for i in range(count)]
+
+        # --- Dialog 1: Input Poin Materi ---
+        dialog_input = QDialog(self)
+        dialog_input.setWindowTitle("Langkah 1: Input Poin Materi")
+        dialog_input.setMinimumSize(500, 400)
+        layout_in = QVBoxLayout(dialog_input)
+
+        lbl_in = QLabel("Masukkan daftar poin-poin/BAB materi (pisahkan dengan baris baru):")
+        text_in = QTextEdit()
+        text_in.setPlaceholderText("Contoh:\nPengenalan Sistem\nArsitektur Dasar\nKesimpulan")
+        
+        btn_copy = QPushButton("Buat Prompt & Salin ke Clipboard")
+        btn_copy.setObjectName("btnBlue")
+
+        layout_in.addWidget(lbl_in)
+        layout_in.addWidget(text_in)
+        layout_in.addWidget(btn_copy)
+
+        def on_copy():
+            user_list = text_in.toPlainText().strip()
+            if not user_list:
+                QMessageBox.warning(dialog_input, "Peringatan", "Daftar poin materi tidak boleh kosong!")
+                return
+
+            # Format template untuk prompt AI
+            prompt = (
+                "Saya sedang menyusun dokumen. Berikut adalah daftar file HTML yang saya miliki:\n"
+                f"{', '.join(file_names)}\n\n"
+                "Berikut adalah daftar poin-poin materi/BAB yang saya inginkan:\n"
+                f"{user_list}\n\n"
+                "Tolong buatkan struktur JSON untuk mengelompokkan file-file HTML tersebut ke dalam BAB "
+                "berdasarkan poin-poin materi di atas. Gunakan format template JSON berikut:\n\n"
+                "{\n"
+                '  "judul_utama": "Judul Dokumen Anda",\n'
+                '  "struktur": {\n'
+                '    "BAB 1: [Nama Poin Materi]": {\n'
+                '      "nama_file1.html": "Judul Sub-materi 1",\n'
+                '      "nama_file2.html": "Judul Sub-materi 2"\n'
+                "    }\n"
+                "  }\n"
+                "}\n\n"
+                "Pastikan SEMUA file HTML yang saya berikan dimasukkan ke dalam susunan JSON tersebut. "
+                "Berikan output HANYA berupa JSON yang valid, tanpa tambahan teks penjelasan, dan tanpa blok kode (```)."
+            )
+
+            # Salin teks ke Clipboard sistem
+            QApplication.clipboard().setText(prompt)
+            QMessageBox.information(
+                dialog_input, 
+                "Berhasil", 
+                "Prompt berhasil disalin ke Clipboard!\n\n1. Buka AI Chat (ChatGPT/Claude/Gemini).\n2. Paste prompt tersebut.\n3. Copy hasil JSON yang diberikan AI.\n\nTutup dialog ini untuk lanjut ke langkah paste."
+            )
+            dialog_input.accept()
+            self.show_ai_paste_dialog() # Langsung buka dialog kedua setelah menutup dialog pertama
+
+        btn_copy.clicked.connect(on_copy)
+        dialog_input.exec()
+
+    def show_ai_paste_dialog(self):
+        # --- Dialog 2: Paste Hasil AI ---
+        dialog_out = QDialog(self)
+        dialog_out.setWindowTitle("Langkah 2: Paste Hasil AI")
+        dialog_out.setMinimumSize(500, 400)
+        layout_out = QVBoxLayout(dialog_out)
+
+        lbl_out = QLabel("Paste teks JSON dari hasil AI Chat ke sini:")
+        text_out = QTextEdit()
+        text_out.setPlaceholderText("Paste output format JSON di sini...\nPastikan berawal dari '{' dan diakhiri '}'")
+        
+        btn_save = QPushButton("Simpan & Muat File JSON")
+        btn_save.setObjectName("btnGreen")
+
+        layout_out.addWidget(lbl_out)
+        layout_out.addWidget(text_out)
+        layout_out.addWidget(btn_save)
+
+        def on_save():
+            ai_result = text_out.toPlainText().strip()
+            
+            # Membuang format markdown jika AI membalas dengan blok kode (```json ... ```)
+            if ai_result.startswith("```json"):
+                ai_result = ai_result[7:]
+            elif ai_result.startswith("```"):
+                ai_result = ai_result[3:]
+            if ai_result.endswith("```"):
+                ai_result = ai_result[:-3]
+            
+            ai_result = ai_result.strip()
+
+            if not ai_result:
+                QMessageBox.warning(dialog_out, "Peringatan", "Input teks hasil tidak boleh kosong!")
+                return
+
+            try:
+                # Coba parsing JSON untuk memastikan formatnya valid
+                parsed_json = json.loads(ai_result)
+
+                # Jika valid, tanyakan lokasi simpan kepada user
+                default_path = os.path.join(self.base_dir, "template_ai.json") if self.base_dir else "template_ai.json"
+                save_path, _ = QFileDialog.getSaveFileName(self, "Simpan Template JSON Baru", default_path, "JSON Files (*.json)")
+
+                if save_path:
+                    # Tulis dan simpan sebagai file JSON baru
+                    with open(save_path, 'w', encoding='utf-8') as f:
+                        json.dump(parsed_json, f, indent=4, ensure_ascii=False)
+
+                    # Secara otomatis muat JSON yang baru di-save ke dalam aplikasi menggunakan method bawaan
+                    self._process_json_file(save_path, show_message=True)
+                    dialog_out.accept()
+
+            except json.JSONDecodeError as e:
+                QMessageBox.critical(dialog_out, "Error Validasi JSON", f"Teks tidak valid sebagai JSON!\n\nPesan Error: {e}\n\nPastikan Anda hanya menyalin kode JSON secara utuh.")
+
+        btn_save.clicked.connect(on_save)
+        dialog_out.exec()
+
     def _process_json_file(self, file_path, show_message=False):
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -671,6 +802,7 @@ class HTMLMergerApp(QMainWindow):
         self.btn_add_files.setEnabled(enabled)
         self.btn_delete.setEnabled(enabled)
         self.btn_clear.setEnabled(enabled)
+        self.btn_ai_json.setEnabled(enabled) # Tambahan kode baru
 
     def _get_export_options(self, is_pdf):
         cover_type = "none"
