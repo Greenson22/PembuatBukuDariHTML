@@ -377,23 +377,10 @@ class HTMLMergerApp(QMainWindow):
         self.scroll_area.setWidget(self.main_container)
         self.setCentralWidget(self.scroll_area)
 
-        # ================= TOP BANNER =================
-        self.top_banner = QFrame()
-        self.top_banner.setObjectName("topBanner")
-        banner_layout = QHBoxLayout(self.top_banner)
-        banner_layout.setContentsMargins(0, 15, 0, 15)
-        
-        title_label = QLabel("Penggabung Dokumen HTML & PDF")
-        title_label.setObjectName("appTitle")
-        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        banner_layout.addWidget(title_label)
-        
-        self.main_layout.addWidget(self.top_banner)
-
         # ================= CONTENT AREA =================
         self.content_widget = QWidget()
         self.content_layout = QHBoxLayout(self.content_widget)
-        self.content_layout.setContentsMargins(25, 25, 25, 25)
+        self.content_layout.setContentsMargins(25, 40, 25, 25)
         self.content_layout.setSpacing(20)
 
         self.left_layout = QVBoxLayout()
