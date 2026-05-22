@@ -567,7 +567,7 @@ class HTMLMergerApp(QMainWindow):
 
     def _get_export_options(self, is_pdf):
         cover_type = "none"
-        cover_bg_color = "#ffffff"  # Default latar belakang putih
+        cover_bg_css = "#ffffff"  # Default latar belakang putih
         
         if self.settings.radio_html_cover.isChecked(): 
             cover_type = "html"
@@ -575,16 +575,27 @@ class HTMLMergerApp(QMainWindow):
             cover_type = "image"
             if self.settings.cover_image_path:
                 try:
-                    # IMPLEMENTASI OPSI 1: EDGE-COLOR MATCHING
+                    # IMPLEMENTASI OPSI 2: GRADASI VERTIKAL DINAMIS (5 TITIK)
                     from PIL import Image
                     with Image.open(self.settings.cover_image_path) as img:
                         img = img.convert("RGB")
-                        # Mengambil sampel piksel persis di ujung kiri atas gambar (koordinat 0,0)
-                        edge_pixel_color = img.getpixel((0, 0))
-                        # Konversi RGB ke HEX Color
-                        cover_bg_color = f"#{edge_pixel_color[0]:02x}{edge_pixel_color[1]:02x}{edge_pixel_color[2]:02x}"
+                        w, h = img.size
+                        
+                        # Ambil sampel 5 titik di sisi paling kiri gambar (dari atas ke bawah)
+                        c_0 = img.getpixel((0, 0))                       # Atas (0%)
+                        c_25 = img.getpixel((0, int(h * 0.25)))          # 25%
+                        c_50 = img.getpixel((0, int(h * 0.50)))          # Tengah (50%)
+                        c_75 = img.getpixel((0, int(h * 0.75)))          # 75%
+                        c_100 = img.getpixel((0, h - 1))                 # Bawah (100%)
+                        
+                        def to_hex(rgb):
+                            return f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
+                            
+                        # Buat CSS linear-gradient yang mengikuti perubahan warna vertikal gambar
+                        cover_bg_css = f"linear-gradient(to bottom, {to_hex(c_0)} 0%, {to_hex(c_25)} 25%, {to_hex(c_50)} 50%, {to_hex(c_75)} 75%, {to_hex(c_100)} 100%)"
+                        
                 except Exception as e:
-                    print(f"Gagal mengambil warna ujung dari gambar cover: {e}")
+                    print(f"Gagal mengekstrak warna gradasi dari gambar cover: {e}")
                     
         elif self.settings.radio_text_cover.isChecked(): 
             cover_type = "text"
@@ -602,7 +613,7 @@ class HTMLMergerApp(QMainWindow):
             "cover_type": cover_type,
             "cover_file_path": self.settings.cover_file_path,
             "cover_image_path": self.settings.cover_image_path,
-            "cover_bg_color": cover_bg_color,
+            "cover_bg_css": cover_bg_css,  # Key diubah menjadi cover_bg_css
             "bab_style_mode": self.settings.combo_bab_style.currentText(),
             "bab_font_size": self.settings.spin_bab_size.value(),
             "materi_style_text": self.settings.combo_materi_style.currentText(),

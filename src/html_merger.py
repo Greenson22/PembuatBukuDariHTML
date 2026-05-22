@@ -72,10 +72,11 @@ def generate_combined_html(files, options, progress_callback=None):
         html_head += "        }\n"
 
         # --- TERAPKAN LATAR BELAKANG HALAMAN COVER ---
-        cover_bg_color = options.get("cover_bg_color", "#ffffff")
+        # Sekarang menggunakan background, bukan background-color agar bisa menerima CSS linear-gradient
+        cover_bg_css = options.get("cover_bg_css", "#ffffff")
         html_head += f"""
         @page cover {{
-            background-color: {cover_bg_color};
+            background: {cover_bg_css};
         """
         # Sembunyikan header dan footer pada sampul
         if use_page_numbers or author_text:
@@ -93,8 +94,8 @@ def generate_combined_html(files, options, progress_callback=None):
         """
 
     else:
-        cover_bg_color = options.get("cover_bg_color", "#ffffff")
-        html_head += f"        .cover-container {{ background-color: {cover_bg_color}; }}\n"
+        cover_bg_css = options.get("cover_bg_css", "#ffffff")
+        html_head += f"        .cover-container {{ background: {cover_bg_css}; }}\n"
 
     html_head += "    </style>\n</head>\n<body>\n"
 
@@ -110,7 +111,7 @@ def generate_combined_html(files, options, progress_callback=None):
             if is_pdf: cover_html += "    <div class='page-break'></div>\n"
     elif cover_type == "image" and options.get("cover_image_path"):
         file_uri = Path(os.path.abspath(options["cover_image_path"])).as_uri()
-        # Menerapkan object-fit: contain agar gambar tidak terpotong dan membiarkan ruang sisa mengikuti warna backgroud (terhubung ke warna ujung piksel)
+        # Menerapkan object-fit: contain
         cover_html += f"<div class='cover-container' style='width: 100%; height: 98vh; overflow: hidden; display: flex; align-items: center; justify-content: center;'><img src='{file_uri}' style='width: 100%; height: 100%; object-fit: contain; display: block;' /></div>\n"
         if is_pdf: cover_html += "    <div class='page-break'></div>\n"
     elif cover_type == "text":
