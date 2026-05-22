@@ -654,9 +654,17 @@ class HTMLMergerApp(QMainWindow):
         dialog_input.setMinimumSize(500, 400)
         layout_in = QVBoxLayout(dialog_input)
 
-        lbl_in = QLabel("Masukkan daftar poin-poin/BAB materi (pisahkan dengan baris baru):")
+        # Menyesuaikan label instruksi berdasarkan status checkbox BAB
+        if self.cb_group_bab.isChecked():
+            lbl_text = "Masukkan daftar poin-poin/BAB materi (pisahkan dengan baris baru):"
+            placeholder_text = "Contoh:\nPengenalan Sistem\nArsitektur Dasar\nKesimpulan"
+        else:
+            lbl_text = "Masukkan daftar judul kustom untuk setiap materi (pisahkan dengan baris baru):"
+            placeholder_text = f"Masukkan judul kustom untuk {count} file secara berurutan..."
+
+        lbl_in = QLabel(lbl_text)
         text_in = QTextEdit()
-        text_in.setPlaceholderText("Contoh:\nPengenalan Sistem\nArsitektur Dasar\nKesimpulan")
+        text_in.setPlaceholderText(placeholder_text)
         
         btn_copy = QPushButton("Buat Prompt & Salin ke Clipboard")
         btn_copy.setObjectName("btnBlue")
@@ -668,26 +676,45 @@ class HTMLMergerApp(QMainWindow):
         def on_copy():
             user_list = text_in.toPlainText().strip()
             if not user_list:
-                QMessageBox.warning(dialog_input, "Peringatan", "Daftar poin materi tidak boleh kosong!")
+                QMessageBox.warning(dialog_input, "Peringatan", "Daftar input materi tidak boleh kosong!")
                 return
 
-            # Format template untuk prompt AI
+            # --- KONDISIONAL STRUKTUR PROMPT BERDASARKAN CHECKBOX BAB ---
+            if self.cb_group_bab.isChecked():
+                instruksi_struktur = (
+                    "Tolong buatkan struktur JSON untuk mengelompokkan file-file HTML tersebut ke dalam BAB "
+                    "berdasarkan poin-poin materi di atas. Gunakan format template JSON berikut:\n\n"
+                    "{\n"
+                    '  "judul_utama": "Judul Dokumen Anda",\n'
+                    '  "struktur": {\n'
+                    '    "BAB 1: [Nama Poin Materi]": {\n'
+                    '      "nama_file1.html": "Judul Sub-materi 1",\n'
+                    '      "nama_file2.html": "Judul Sub-materi 2"\n'
+                    "    }\n"
+                    "  }\n"
+                    "}"
+                )
+            else:
+                instruksi_struktur = (
+                    "Tolong buatkan struktur JSON datar (tanpa pengelompokan BAB) yang mencocokkan setiap file HTML "
+                    "secara berurutan dengan judul kustom yang lebih rapi berdasarkan daftar poin di atas. "
+                    "Gunakan format template JSON berikut:\n\n"
+                    "{\n"
+                    '  "judul_utama": "Judul Dokumen Anda",\n'
+                    '  "struktur": {\n'
+                    '    "nama_file1.html": "Judul Kustom Materi 1",\n'
+                    '    "nama_file2.html": "Judul Kustom Materi 2"\n'
+                    "  }\n"
+                    "}"
+                )
+
+            # Format template final untuk prompt AI
             prompt = (
                 "Saya sedang menyusun dokumen. Berikut adalah daftar file HTML yang saya miliki:\n"
                 f"{', '.join(file_names)}\n\n"
-                "Berikut adalah daftar poin-poin materi/BAB yang saya inginkan:\n"
+                "Berikut adalah daftar poin-poin/judul materi yang saya inginkan:\n"
                 f"{user_list}\n\n"
-                "Tolong buatkan struktur JSON untuk mengelompokkan file-file HTML tersebut ke dalam BAB "
-                "berdasarkan poin-poin materi di atas. Gunakan format template JSON berikut:\n\n"
-                "{\n"
-                '  "judul_utama": "Judul Dokumen Anda",\n'
-                '  "struktur": {\n'
-                '    "BAB 1: [Nama Poin Materi]": {\n'
-                '      "nama_file1.html": "Judul Sub-materi 1",\n'
-                '      "nama_file2.html": "Judul Sub-materi 2"\n'
-                "    }\n"
-                "  }\n"
-                "}\n\n"
+                f"{instruksi_struktur}\n\n"
                 "Pastikan SEMUA file HTML yang saya berikan dimasukkan ke dalam susunan JSON tersebut. "
                 "Berikan output HANYA berupa JSON yang valid, tanpa tambahan teks penjelasan, dan tanpa blok kode (```)."
             )
@@ -700,11 +727,10 @@ class HTMLMergerApp(QMainWindow):
                 "Prompt berhasil disalin ke Clipboard!\n\n1. Buka AI Chat (ChatGPT/Claude/Gemini).\n2. Paste prompt tersebut.\n3. Copy hasil JSON yang diberikan AI.\n\nTutup dialog ini untuk lanjut ke langkah paste."
             )
             dialog_input.accept()
-            self.show_ai_paste_dialog() # Langsung buka dialog kedua setelah menutup dialog pertama
+            self.show_ai_paste_dialog()
 
         btn_copy.clicked.connect(on_copy)
         dialog_input.exec()
-
     def show_ai_paste_dialog(self):
         # --- Dialog 2: Paste Hasil AI ---
         dialog_out = QDialog(self)
