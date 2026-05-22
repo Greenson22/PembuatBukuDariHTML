@@ -22,8 +22,10 @@ class SettingsDialog(QDialog):
         self.cover_file_path = None
         self.cover_image_path = None
         self._is_updating_margins = False
+        self.config_file = "config.json" # File untuk menyimpan konfigurasi
         
         self.init_ui()
+        self.load_settings() # Muat pengaturan tersimpan saat dialog dibuat
 
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -178,10 +180,18 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.cb_toc)
         layout.addWidget(self.cb_page_numbers)
         
-        # Tombol Tutup
-        btn_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-        btn_box.rejected.connect(self.accept)
-        layout.addWidget(btn_box)
+        # --- PERUBAHAN: Menghapus Tombol Tutup Silang, menggantinya dengan Simpan & Default ---
+        action_layout = QHBoxLayout()
+        
+        self.btn_reset = QPushButton("Kembalikan ke Default")
+        self.btn_reset.setObjectName("btnGray")
+        
+        self.btn_save = QPushButton("Simpan & Tutup")
+        self.btn_save.setObjectName("btnBlue")
+        
+        action_layout.addWidget(self.btn_reset)
+        action_layout.addWidget(self.btn_save)
+        layout.addLayout(action_layout)
 
         # Connections
         self.combo_margin_preset.currentIndexChanged.connect(self.apply_margin_preset)
@@ -191,9 +201,100 @@ class SettingsDialog(QDialog):
         self.radio_text_cover.toggled.connect(self.toggle_cover_options)
         self.btn_select_cover.clicked.connect(self.select_cover_file)
         self.btn_select_image.clicked.connect(self.select_cover_image)
+        
+        # Menghubungkan fungsi ke tombol baru
+        self.btn_reset.clicked.connect(self.reset_to_default)
+        self.btn_save.clicked.connect(self.save_settings)
 
         self.apply_margin_preset()
 
+    # --- FUNGSI BARU UNTUK KONFIGURASI ---
+    def save_settings(self):
+        config_data = {
+            "combo_size": self.combo_size.currentText(),
+            "combo_margin_preset": self.combo_margin_preset.currentIndex(),
+            "spin_margin_top": self.spin_margin_top.value(),
+            "spin_margin_bottom": self.spin_margin_bottom.value(),
+            "spin_margin_left": self.spin_margin_left.value(),
+            "spin_margin_right": self.spin_margin_right.value(),
+            "cover_type": "html" if self.radio_html_cover.isChecked() else "image" if self.radio_image_cover.isChecked() else "text" if self.radio_text_cover.isChecked() else "none",
+            "input_author": self.input_author.text(),
+            "combo_hf_pos": self.combo_hf_pos.currentText(),
+            "combo_hf_align": self.combo_hf_align.currentText(),
+            "combo_bab_style": self.combo_bab_style.currentText(),
+            "spin_bab_size": self.spin_bab_size.value(),
+            "combo_materi_style": self.combo_materi_style.currentText(),
+            "spin_materi_size": self.spin_materi_size.value(),
+            "cb_toc": self.cb_toc.isChecked(),
+            "cb_page_numbers": self.cb_page_numbers.isChecked()
+        }
+        try:
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, indent=4)
+            self.accept() # Tutup dialog
+        except Exception as e:
+            QMessageBox.warning(self, "Gagal", f"Gagal menyimpan pengaturan:\n{str(e)}")
+
+    def load_settings(self):
+        if not os.path.exists(self.config_file):
+            return
+            
+        try:
+            with open(self.config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                
+            self.combo_size.setCurrentText(config.get("combo_size", "A4"))
+            self.combo_margin_preset.setCurrentIndex(config.get("combo_margin_preset", 1))
+            self.spin_margin_top.setValue(config.get("spin_margin_top", 13))
+            self.spin_margin_bottom.setValue(config.get("spin_margin_bottom", 13))
+            self.spin_margin_left.setValue(config.get("spin_margin_left", 13))
+            self.spin_margin_right.setValue(config.get("spin_margin_right", 13))
+            
+            cover = config.get("cover_type", "none")
+            if cover == "html": self.radio_html_cover.setChecked(True)
+            elif cover == "image": self.radio_image_cover.setChecked(True)
+            elif cover == "text": self.radio_text_cover.setChecked(True)
+            else: self.radio_no_cover.setChecked(True)
+            
+            self.input_author.setText(config.get("input_author", "F. R. Gerung"))
+            self.combo_hf_pos.setCurrentText(config.get("combo_hf_pos", "Header"))
+            self.combo_hf_align.setCurrentText(config.get("combo_hf_align", "Kiri"))
+            self.combo_bab_style.setCurrentText(config.get("combo_bab_style", "Klasik Tengah (Default)"))
+            self.spin_bab_size.setValue(config.get("spin_bab_size", 16))
+            self.combo_materi_style.setCurrentText(config.get("combo_materi_style", "Normal"))
+            self.spin_materi_size.setValue(config.get("spin_materi_size", 12))
+            
+            self.cb_toc.setChecked(config.get("cb_toc", True))
+            self.cb_page_numbers.setChecked(config.get("cb_page_numbers", True))
+            
+        except Exception as e:
+            print(f"Gagal memuat pengaturan: {e}")
+
+    def reset_to_default(self):
+        self.combo_size.setCurrentText("A4")
+        self.combo_margin_preset.setCurrentIndex(1)
+        self._set_spin_margins(13, 13, 13, 13)
+        self.radio_no_cover.setChecked(True)
+        self.input_author.setText("F. R. Gerung")
+        self.combo_hf_pos.setCurrentText("Header")
+        self.combo_hf_align.setCurrentText("Kiri")
+        self.combo_bab_style.setCurrentText("Klasik Tengah (Default)")
+        self.spin_bab_size.setValue(16)
+        self.combo_materi_style.setCurrentText("Normal")
+        self.spin_materi_size.setValue(12)
+        self.cb_toc.setChecked(True)
+        self.cb_page_numbers.setChecked(True)
+        
+        # Bersihkan path cover yang mungkin terpilih
+        self.cover_file_path = None
+        self.cover_image_path = None
+        self.lbl_cover_status.setText("Belum ada file dipilih")
+        self.lbl_image_status.setText("Belum ada file dipilih")
+        self.input_cover_title.clear()
+        
+        QMessageBox.information(self, "Reset", "Pengaturan telah dikembalikan ke standar bawaan.")
+
+    # --- FUNGSI BAWAAN YANG SUDAH ADA ---
     def create_margin_spinbox(self, label_text, default_value, parent_layout):
         layout = QHBoxLayout()
         layout.setContentsMargins(0,0,10,0)
@@ -252,8 +353,6 @@ class SettingsDialog(QDialog):
         if file:
             self.cover_image_path = file
             self.lbl_image_status.setText(f"<b><font color='#27ae60'>✓ File: {os.path.basename(file)}</font></b>")
-
-
 class HTMLMergerApp(QMainWindow):
     def __init__(self):
         super().__init__()
