@@ -172,14 +172,18 @@ class SettingsDialog(QDialog):
 
         layout.addStretch()
 
+        # Pengaturan Umum Dokumen
         layout.addWidget(QLabel("Pengaturan Umum Dokumen:", objectName="sectionLabel"))
         self.cb_toc = QCheckBox("Buat Daftar Isi Otomatis")
         self.cb_toc.setChecked(True)
         self.cb_page_numbers = QCheckBox("Tambahkan Nomor Halaman (Khusus Ekspor PDF)")
         self.cb_page_numbers.setChecked(True)
+        self.cb_auto_export = QCheckBox("Ekspor langsung ke folder aktif (tanpa dialog popup)")
+        self.cb_auto_export.setChecked(False)
         
         layout.addWidget(self.cb_toc)
         layout.addWidget(self.cb_page_numbers)
+        layout.addWidget(self.cb_auto_export)
         
         action_layout = QHBoxLayout()
         self.btn_reset = QPushButton("Kembalikan ke Default")
@@ -230,7 +234,8 @@ class SettingsDialog(QDialog):
             "combo_materi_style": self.combo_materi_style.currentText(),
             "spin_materi_size": self.spin_materi_size.value(),
             "cb_toc": self.cb_toc.isChecked(),
-            "cb_page_numbers": self.cb_page_numbers.isChecked()
+            "cb_page_numbers": self.cb_page_numbers.isChecked(),
+            "cb_auto_export": self.cb_auto_export.isChecked()
         })
         try:
             with open(self.config_file, 'w', encoding='utf-8') as f:
@@ -270,6 +275,7 @@ class SettingsDialog(QDialog):
             
             self.cb_toc.setChecked(config.get("cb_toc", True))
             self.cb_page_numbers.setChecked(config.get("cb_page_numbers", True))
+            self.cb_auto_export.setChecked(config.get("cb_auto_export", False))
             
         except Exception as e:
             print(f"Gagal memuat pengaturan: {e}")
@@ -288,6 +294,7 @@ class SettingsDialog(QDialog):
         self.spin_materi_size.setValue(12)
         self.cb_toc.setChecked(True)
         self.cb_page_numbers.setChecked(True)
+        self.cb_auto_export.setChecked(False)
         
         self.cover_file_path = None
         self.cover_image_path = None
@@ -564,7 +571,7 @@ class HTMLMergerApp(QMainWindow):
         self.btn_auto_html.clicked.connect(self.generate_html_files) 
         self.btn_delete.clicked.connect(self.delete_selected)
         self.btn_clear.clicked.connect(self.clear_all)
-        self.btn_delete_others.clicked.connect(self.delete_other_files) # Sinyal fungsi baru
+        self.btn_delete_others.clicked.connect(self.delete_other_files) 
         
         self.btn_export_json.clicked.connect(self.export_json_template)
         self.btn_load_json.clicked.connect(self.load_json_titles)
@@ -826,12 +833,16 @@ class HTMLMergerApp(QMainWindow):
                 template_data["struktur"][f_name] = f_name.replace('.html', '').title()
 
         default_path = os.path.join(self.base_dir, "template_judul.json") if self.base_dir else "template_judul.json"
-        save_path, _ = QFileDialog.getSaveFileName(self, "Simpan Template JSON", default_path, "JSON Files (*.json)")
+        
+        if self.settings.cb_auto_export.isChecked() and self.base_dir:
+            save_path = default_path
+        else:
+            save_path, _ = QFileDialog.getSaveFileName(self, "Simpan Template JSON", default_path, "JSON Files (*.json)")
         
         if save_path:
             with open(save_path, 'w', encoding='utf-8') as f:
                 json.dump(template_data, f, indent=4, ensure_ascii=False)
-            QMessageBox.information(self, "Berhasil", "Template JSON berhasil disimpan!")
+            QMessageBox.information(self, "Berhasil", f"Template JSON berhasil disimpan di:\n{save_path}")
 
     def load_json_titles(self):
         start_dir = self.base_dir if self.base_dir else ""
@@ -1064,7 +1075,7 @@ class HTMLMergerApp(QMainWindow):
         self.btn_auto_html.setEnabled(enabled)
         self.btn_delete.setEnabled(enabled)
         self.btn_clear.setEnabled(enabled)
-        self.btn_delete_others.setEnabled(enabled) # Set UI enabled
+        self.btn_delete_others.setEnabled(enabled) 
         self.btn_ai_json.setEnabled(enabled) 
 
     def _get_export_options(self, is_pdf):
@@ -1137,7 +1148,11 @@ class HTMLMergerApp(QMainWindow):
             out_name += ".zip"
 
         default_path = os.path.join(self.base_dir, out_name)
-        save_path, _ = QFileDialog.getSaveFileName(self, "Simpan Arsip ZIP", default_path, "ZIP Files (*.zip)")
+        
+        if self.settings.cb_auto_export.isChecked():
+            save_path = default_path
+        else:
+            save_path, _ = QFileDialog.getSaveFileName(self, "Simpan Arsip ZIP", default_path, "ZIP Files (*.zip)")
 
         if not save_path:
             return
