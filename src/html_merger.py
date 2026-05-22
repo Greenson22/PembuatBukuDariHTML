@@ -71,18 +71,31 @@ def generate_combined_html(files, options, progress_callback=None):
 
         html_head += "        }\n"
 
+        # --- TERAPKAN LATAR BELAKANG HALAMAN COVER ---
+        cover_bg_color = options.get("cover_bg_color", "#ffffff")
+        html_head += f"""
+        @page cover {{
+            background-color: {cover_bg_color};
+        """
+        # Sembunyikan header dan footer pada sampul
         if use_page_numbers or author_text:
             html_head += """
-            @page cover {
-                @top-left { content: none; }
-                @top-center { content: none; }
-                @top-right { content: none; }
-                @bottom-left { content: none; }
-                @bottom-center { content: none; }
-                @bottom-right { content: none; }
-            }
-            .cover-container { page: cover; }
+            @top-left { content: none; }
+            @top-center { content: none; }
+            @top-right { content: none; }
+            @bottom-left { content: none; }
+            @bottom-center { content: none; }
+            @bottom-right { content: none; }
             """
+        html_head += """
+        }
+        .cover-container { page: cover; }
+        """
+
+    else:
+        # Jika bukan mode PDF (HTML biasa), berikan styling langsung ke div kontainer.
+        cover_bg_color = options.get("cover_bg_color", "#ffffff")
+        html_head += f"        .cover-container {{ background-color: {cover_bg_color}; }}\n"
 
     html_head += "    </style>\n</head>\n<body>\n"
 
@@ -98,7 +111,7 @@ def generate_combined_html(files, options, progress_callback=None):
             if is_pdf: cover_html += "    <div class='page-break'></div>\n"
     elif cover_type == "image" and options.get("cover_image_path"):
         file_uri = Path(os.path.abspath(options["cover_image_path"])).as_uri()
-        cover_html += f"<div class='cover-container' style='width: 100%; height: 98vh; overflow: hidden;'><img src='{file_uri}' style='width: 100%; height: 100%; object-fit: cover; object-position: top; display: block;' /></div>\n"
+        cover_html += f"<div class='cover-container' style='width: 100%; height: 98vh; overflow: hidden; display: flex; align-items: center; justify-content: center;'><img src='{file_uri}' style='width: 100%; height: 100%; object-fit: contain; display: block;' /></div>\n"
         if is_pdf: cover_html += "    <div class='page-break'></div>\n"
     elif cover_type == "text":
         judul = doc_title if doc_title else "Judul Dokumen (Kosong)"
@@ -183,7 +196,6 @@ def generate_combined_html(files, options, progress_callback=None):
             body_content = soup.find('body')
             content = str(body_content.decode_contents()) if body_content else str(soup)
             
-            # KODE SETELAH DIPERBARUI:
             body_html += f"    <div class='section-container' id='{element_id}'>\n"
             body_html += f"        <div style='font-size: {materi_font_size}pt; font-style: {m_font_style}; font-weight: {m_font_weight}; color: #555; margin-bottom: 15px;'>{display_title}</div>\n"
             body_html += content

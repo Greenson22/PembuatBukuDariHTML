@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
                              QSpinBox, QFrame, QApplication, QDialog, QDialogButtonBox, 
                              QSizePolicy)
                              
-
 from styles import get_modern_theme
 from pdf_worker import PDFWorker
 from html_merger import generate_combined_html
@@ -444,9 +443,7 @@ class HTMLMergerApp(QMainWindow):
         
         self.file_list = QListWidget()
         self.file_list.setDragDropMode(QListWidget.DragDropMode.InternalMove)
-        # Mengatur ukuran minimum, namun membiarkannya membesar tanpa batas saat di-maximize
         self.file_list.setMinimumHeight(350)
-        # Tambahkan ini agar list otomatis memanjang mengikuti tinggi layar Ubuntu
         self.file_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         l_list.addWidget(self.file_list)
         
@@ -585,18 +582,34 @@ class HTMLMergerApp(QMainWindow):
 
     def _get_export_options(self, is_pdf):
         cover_type = "none"
-        if self.settings.radio_html_cover.isChecked(): cover_type = "html"
-        elif self.settings.radio_image_cover.isChecked(): cover_type = "image"
-        elif self.settings.radio_text_cover.isChecked(): cover_type = "text"
+        cover_bg_color = "#ffffff"  # Default latar belakang putih
+        
+        if self.settings.radio_html_cover.isChecked(): 
+            cover_type = "html"
+        elif self.settings.radio_image_cover.isChecked(): 
+            cover_type = "image"
+            if self.settings.cover_image_path:
+                try:
+                    # Menggunakan PIL untuk membaca gambar dan mengekstrak rata-rata warnanya
+                    from PIL import Image
+                    with Image.open(self.settings.cover_image_path) as img:
+                        img = img.convert("RGB")
+                        # Mengubah resolusi gambar menjadi 1x1 piksel (untuk mendapat nilai tengah rata-rata)
+                        img_small = img.resize((1, 1))
+                        dom_color = img_small.getpixel((0, 0))
+                        # Konversi RGB ke HEX Color
+                        cover_bg_color = f"#{dom_color[0]:02x}{dom_color[1]:02x}{dom_color[2]:02x}"
+                except Exception as e:
+                    print(f"Gagal mengambil warna dominan dari gambar cover: {e}")
+                    
+        elif self.settings.radio_text_cover.isChecked(): 
+            cover_type = "text"
 
         return {
             "doc_title": self.settings.input_cover_title.text().strip() or "Gabungan Materi",
             "is_pdf": is_pdf,
-            
-            # UBAH 2 BARIS INI: Tambahkan referensi 'self.settings.' di depannya
             "use_toc": self.settings.cb_toc.isChecked(),
             "use_page_numbers": self.settings.cb_page_numbers.isChecked(),
-            
             "page_size": self.settings.combo_size.currentText(),
             "margins": (self.settings.spin_margin_top.value(), self.settings.spin_margin_bottom.value(), self.settings.spin_margin_left.value(), self.settings.spin_margin_right.value()),
             "author_text": self.settings.input_author.text().strip(),
@@ -605,6 +618,7 @@ class HTMLMergerApp(QMainWindow):
             "cover_type": cover_type,
             "cover_file_path": self.settings.cover_file_path,
             "cover_image_path": self.settings.cover_image_path,
+            "cover_bg_color": cover_bg_color,  # Menambahkan opsi warna background
             "bab_style_mode": self.settings.combo_bab_style.currentText(),
             "bab_font_size": self.settings.spin_bab_size.value(),
             "materi_style_text": self.settings.combo_materi_style.currentText(),
