@@ -276,121 +276,180 @@ class HTMLMergerApp(QMainWindow):
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QScrollArea.Shape.NoFrame)
         self.main_container = QWidget()
+        self.main_container.setObjectName("mainContainer")
         
+        # Layout utama window tanpa margin agar banner bisa full width
         self.main_layout = QVBoxLayout(self.main_container)
-        self.main_layout.setContentsMargins(25, 25, 25, 25)
-        self.main_layout.setSpacing(15)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
 
         self.scroll_area.setWidget(self.main_container)
         self.setCentralWidget(self.scroll_area)
 
+        # ================= TOP BANNER =================
+        self.top_banner = QFrame()
+        self.top_banner.setObjectName("topBanner")
+        banner_layout = QHBoxLayout(self.top_banner)
+        banner_layout.setContentsMargins(0, 15, 0, 15)
+        
         title_label = QLabel("Penggabung Dokumen HTML & PDF")
         title_label.setObjectName("appTitle")
-        self.main_layout.addWidget(title_label)
-
-        self.split_layout = QHBoxLayout()
-        self.split_layout.setSpacing(20)
-        self.left_layout = QVBoxLayout()
-        self.left_layout.setSpacing(10)
-        self.right_layout = QVBoxLayout()
-        self.right_layout.setSpacing(10)
-        self.split_layout.addLayout(self.left_layout, stretch=6) 
-        self.split_layout.addLayout(self.right_layout, stretch=4) 
-        self.main_layout.addLayout(self.split_layout)
-
-        # ================= BAGIAN KANAN =================
-        right_title = QLabel("Manajemen File Materi")
-        right_title.setObjectName("sectionLabel")
-        self.right_layout.addWidget(right_title)
-
-        row1 = QHBoxLayout()
-        self.btn_add_folder = QPushButton("Pilih Folder")
-        self.btn_add_folder.setObjectName("btnActionSmall")
-        self.btn_add_files = QPushButton("Pilih File HTML")
-        self.btn_add_files.setObjectName("btnActionSmall")
-        row1.addWidget(self.btn_add_folder)
-        row1.addWidget(self.btn_add_files)
-
-        row2 = QHBoxLayout()
-        self.btn_delete = QPushButton("Hapus Terpilih")
-        self.btn_delete.setObjectName("btnDangerSmall")
-        self.btn_clear = QPushButton("Bersihkan Semua")
-        self.btn_clear.setObjectName("btnWarningSmall")
-        row2.addWidget(self.btn_delete)
-        row2.addWidget(self.btn_clear)
-
-        self.right_layout.addLayout(row1)
-        self.right_layout.addLayout(row2)
-
-        list_label = QLabel("Urutan file materi yang akan digabung:")
-        list_label.setObjectName("sectionLabel")
-        self.right_layout.addWidget(list_label)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        banner_layout.addWidget(title_label)
         
-        self.file_list = QListWidget()
-        self.file_list.setDragDropMode(QListWidget.DragDropMode.InternalMove)
-        self.file_list.setMinimumHeight(450) 
-        self.right_layout.addWidget(self.file_list)
-        self.right_layout.addStretch()
+        self.main_layout.addWidget(self.top_banner)
+
+        # ================= CONTENT AREA =================
+        self.content_widget = QWidget()
+        self.content_layout = QHBoxLayout(self.content_widget)
+        self.content_layout.setContentsMargins(25, 25, 25, 25)
+        self.content_layout.setSpacing(20)
+
+        self.left_layout = QVBoxLayout()
+        self.left_layout.setSpacing(15)
+        self.right_layout = QVBoxLayout()
+        self.right_layout.setSpacing(15)
+        
+        # Split rasio layout 5:5 mirip gambar
+        self.content_layout.addLayout(self.left_layout, stretch=5) 
+        self.content_layout.addLayout(self.right_layout, stretch=5) 
+        self.main_layout.addWidget(self.content_widget)
+        self.main_layout.addStretch()
 
         # ================= BAGIAN KIRI =================
-        action_title = QLabel("Proses Eksekusi & Nama Output:")
-        action_title.setObjectName("sectionLabel")
-        action_title.setStyleSheet("color: #e74c3c; font-size: 15px;")
-        self.left_layout.addWidget(action_title)
         
-        self.action_layout = QHBoxLayout()
-        self.output_name = QLineEdit("Gabungan_Materi")
-        self.output_name.setPlaceholderText("Nama file tanpa ekstensi...")
+        # -- Card 1: Proses Eksekusi --
+        self.card_exec = QFrame()
+        self.card_exec.setProperty("class", "Card")
+        l_exec = QVBoxLayout(self.card_exec)
+        l_exec.setContentsMargins(20, 20, 20, 20)
+        l_exec.setSpacing(15)
         
+        lbl_exec = QLabel("Proses Eksekusi & Nama Output")
+        lbl_exec.setProperty("class", "CardTitle")
+        l_exec.addWidget(lbl_exec)
+        
+        self.output_name = QLineEdit("Nama Input Output")
+        self.output_name.setPlaceholderText("Masukkan nama output...")
+        l_exec.addWidget(self.output_name)
+        
+        hbox_btns = QHBoxLayout()
         self.btn_generate_html = QPushButton("Gabung HTML")
-        self.btn_generate_html.setStyleSheet("background-color: #3498db; color: white; padding: 8px 12px; font-size: 13px; font-weight: bold; border-radius: 4px;")
-        
+        self.btn_generate_html.setObjectName("btnBlue")
         self.btn_generate_pdf = QPushButton("Gabung PDF")
-        self.btn_generate_pdf.setStyleSheet("background-color: #27ae60; color: white; padding: 8px 12px; font-size: 13px; font-weight: bold; border-radius: 4px;")
-
-        self.action_layout.addWidget(self.output_name)
-        self.action_layout.addWidget(self.btn_generate_html)
-        self.action_layout.addWidget(self.btn_generate_pdf)
-        self.left_layout.addLayout(self.action_layout)
+        self.btn_generate_pdf.setObjectName("btnGreen")
+        hbox_btns.addWidget(self.btn_generate_html)
+        hbox_btns.addWidget(self.btn_generate_pdf)
+        l_exec.addLayout(hbox_btns)
         
-        # Tombol untuk membuka pop-up pengaturan 
-        self.btn_settings = QPushButton("⚙️ Pengaturan Dokumen (Kertas, Margin, Cover, Teks, Visual)")
-        self.btn_settings.setObjectName("btnInfo")
-        self.btn_settings.setStyleSheet("padding: 8px; font-weight: bold; margin-bottom: 10px;")
-        self.left_layout.addWidget(self.btn_settings)
+        self.btn_settings = QPushButton("⚙ Pengaturan Dokumen")
+        self.btn_settings.setObjectName("btnPurple")
+        l_exec.addWidget(self.btn_settings)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
         self.progress_bar.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.progress_bar.hide()
-        self.left_layout.addWidget(self.progress_bar)
+        l_exec.addWidget(self.progress_bar)
+        
+        self.left_layout.addWidget(self.card_exec)
 
-        line = QFrame()
-        line.setFrameShape(QFrame.Shape.HLine)
-        line.setStyleSheet("background-color: #dcdde1; margin-top: 5px; margin-bottom: 10px;")
-        self.left_layout.addWidget(line)
-
-        # Pengaturan JSON / Judul Kustom
-        self.json_layout = QVBoxLayout()
-        self.left_layout.addWidget(QLabel("Judul Kustom & Struktur BAB (Opsional):", objectName="sectionLabel"))
-        self.cb_group_bab = QCheckBox("Tambahkan grup BAB di dalam Template JSON (Hirarki Bersarang)")
-        json_btns_layout = QHBoxLayout()
+        # -- Card 2: Judul Kustom & JSON --
+        self.card_json = QFrame()
+        self.card_json.setProperty("class", "Card")
+        l_json = QVBoxLayout(self.card_json)
+        l_json.setContentsMargins(20, 20, 20, 20)
+        l_json.setSpacing(15)
+        
+        hbox_json_title = QHBoxLayout()
+        lbl_json = QLabel("Judul Kustom & Struktur BAB")
+        lbl_json.setProperty("class", "CardTitle")
+        self.cb_group_bab = QCheckBox() # Berperan sebagai switch di kanan
+        self.cb_group_bab.setChecked(True)
+        hbox_json_title.addWidget(lbl_json)
+        hbox_json_title.addStretch()
+        hbox_json_title.addWidget(self.cb_group_bab)
+        l_json.addLayout(hbox_json_title)
+        
+        desc_json = QLabel("Judul kustom & struktur HTML & BAB")
+        desc_json.setStyleSheet("color: #555;")
+        l_json.addWidget(desc_json)
+        
         self.btn_export_json = QPushButton("1. Ekspor Template JSON")
+        self.btn_export_json.setObjectName("btnDarkGray")
         self.btn_load_json = QPushButton("2. Muat Judul JSON")
-        json_btns_layout.addWidget(self.btn_export_json)
-        json_btns_layout.addWidget(self.btn_load_json)
-        json_btns_layout.addStretch()
+        self.btn_load_json.setObjectName("btnDarkGray")
+        
+        l_json.addWidget(self.btn_export_json)
+        l_json.addWidget(self.btn_load_json)
+        
+        self.left_layout.addWidget(self.card_json)
+        
+        # -- Card 3: Status Default --
+        self.card_status = QFrame()
+        self.card_status.setProperty("class", "Card")
+        l_status = QVBoxLayout(self.card_status)
+        l_status.setContentsMargins(20, 15, 20, 15)
         self.lbl_json_status = QLabel("Status: Default (Nama File)")
-        self.json_layout.addWidget(self.cb_group_bab)
-        self.json_layout.addLayout(json_btns_layout)
-        self.json_layout.addWidget(self.lbl_json_status)
-        self.left_layout.addLayout(self.json_layout)
-        self.left_layout.addStretch() 
+        self.lbl_json_status.setProperty("class", "StatusLabel")
+        l_status.addWidget(self.lbl_json_status)
+        self.left_layout.addWidget(self.card_status)
+        self.left_layout.addStretch()
+
+        # ================= BAGIAN KANAN =================
+        
+        # -- Card 1: Manajemen File --
+        self.card_file = QFrame()
+        self.card_file.setProperty("class", "Card")
+        l_file = QVBoxLayout(self.card_file)
+        l_file.setContentsMargins(20, 20, 20, 20)
+        l_file.setSpacing(15)
+        
+        lbl_file = QLabel("Manajemen File Materi")
+        lbl_file.setProperty("class", "CardTitle")
+        l_file.addWidget(lbl_file)
+        
+        self.btn_add_folder = QPushButton("Pilih Folder\nDrag dan drop atau Pilih Folder")
+        self.btn_add_folder.setProperty("class", "DashedBox")
+        
+        self.btn_add_files = QPushButton("Pilih File HTML\nDrag dan drop atau Pilih File HTML")
+        self.btn_add_files.setProperty("class", "DashedBox")
+        
+        l_file.addWidget(self.btn_add_folder)
+        l_file.addWidget(self.btn_add_files)
+        
+        hbox_file_actions = QHBoxLayout()
+        self.btn_delete = QPushButton("Hapus Terpilih")
+        self.btn_delete.setObjectName("btnRed")
+        self.btn_clear = QPushButton("Bersihkan Semua")
+        self.btn_clear.setObjectName("btnGray")
+        hbox_file_actions.addWidget(self.btn_delete)
+        hbox_file_actions.addWidget(self.btn_clear)
+        l_file.addLayout(hbox_file_actions)
+        
+        self.right_layout.addWidget(self.card_file)
+        
+        # -- Card 2: List File --
+        self.card_list = QFrame()
+        self.card_list.setProperty("class", "Card")
+        l_list = QVBoxLayout(self.card_list)
+        l_list.setContentsMargins(20, 20, 20, 20)
+        
+        lbl_list = QLabel("Urutan file materi yang akan digabung")
+        lbl_list.setProperty("class", "CardTitle")
+        l_list.addWidget(lbl_list)
+        
+        self.file_list = QListWidget()
+        self.file_list.setDragDropMode(QListWidget.DragDropMode.InternalMove)
+        self.file_list.setMinimumHeight(250) 
+        l_list.addWidget(self.file_list)
+        
+        self.right_layout.addWidget(self.card_list)
 
         # Signal connections
         self.btn_generate_html.clicked.connect(self.merge_to_html)
         self.btn_generate_pdf.clicked.connect(self.merge_to_pdf)
-        self.btn_settings.clicked.connect(self.settings.exec) # Buka popup pengaturan
+        self.btn_settings.clicked.connect(self.settings.exec) 
         
         self.btn_add_folder.clicked.connect(self.add_folder)
         self.btn_add_files.clicked.connect(self.add_files)
