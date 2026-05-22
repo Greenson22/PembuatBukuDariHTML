@@ -206,7 +206,6 @@ class SettingsDialog(QDialog):
         self.apply_margin_preset()
 
     def save_settings(self):
-        # Saat menyimpan, pertahankan juga konfigurasi khusus HTMLMergerApp yang sudah ada
         config_data = {}
         if os.path.exists(self.config_file):
             try:
@@ -504,6 +503,17 @@ class HTMLMergerApp(QMainWindow):
         
         l_file.addWidget(self.btn_add_folder)
         l_file.addWidget(self.btn_add_files)
+
+        # FITUR BARU: Pembuatan list.txt & auto-generate HTML kosong
+        hbox_list_html = QHBoxLayout()
+        self.btn_create_list = QPushButton("📝 Buat list.txt")
+        self.btn_create_list.setObjectName("btnDarkGray")
+        self.btn_auto_html = QPushButton("📄 Generate HTML Kosong")
+        self.btn_auto_html.setObjectName("btnBlue")
+        
+        hbox_list_html.addWidget(self.btn_create_list)
+        hbox_list_html.addWidget(self.btn_auto_html)
+        l_file.addLayout(hbox_list_html)
         
         hbox_file_actions = QHBoxLayout()
         self.btn_delete = QPushButton("Hapus Terpilih")
@@ -544,15 +554,15 @@ class HTMLMergerApp(QMainWindow):
         
         self.btn_add_folder.clicked.connect(self.add_folder)
         self.btn_add_files.clicked.connect(self.add_files)
+        self.btn_create_list.clicked.connect(self.create_list_txt) # Koneksi fungsi baru
+        self.btn_auto_html.clicked.connect(self.generate_html_files) # Koneksi fungsi baru
         self.btn_delete.clicked.connect(self.delete_selected)
         self.btn_clear.clicked.connect(self.clear_all)
         self.btn_export_json.clicked.connect(self.export_json_template)
         self.btn_load_json.clicked.connect(self.load_json_titles)
         self.btn_ai_json.clicked.connect(self.show_ai_prompt_dialog)
 
-        # Muat status spesifik App dari config.json
         self.load_app_state_from_config()
-        # Hubungkan fungsi auto-save ke config.json setiap status toggle berubah
         self.cb_group_bab.toggled.connect(self.save_app_state_to_config)
 
     def load_app_state_from_config(self):
@@ -587,6 +597,115 @@ class HTMLMergerApp(QMainWindow):
                 json.dump(cfg, f, indent=4)
         except Exception as e:
             print(f"Gagal menyimpan state app ke config: {e}")
+
+    def create_list_txt(self):
+        if not self.base_dir:
+            folder = QFileDialog.getExistingDirectory(self, "Pilih Folder Utama Terlebih Dahulu")
+            if folder:
+                self.base_dir = folder
+                self.lbl_base_path.setText(f"Path Utama: {self.base_dir}")
+            else:
+                return
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Input Daftar Materi (list.txt)")
+        dialog.setMinimumSize(500, 400)
+        layout = QVBoxLayout(dialog)
+
+        lbl = QLabel("Masukkan daftar materi (satu baris untuk satu file materi):")
+        text_edit = QTextEdit()
+        text_edit.setPlaceholderText("Contoh:\nPengenalan Sistem\nArsitektur Dasar\nKesimpulan")
+        
+        list_path = os.path.join(self.base_dir, "list.txt")
+        if os.path.exists(list_path):
+            try:
+                with open(list_path, 'r', encoding='utf-8') as f:
+                    text_edit.setPlainText(f.read())
+            except Exception as e:
+                print(f"Gagal membaca list.txt yang sudah ada: {e}")
+
+        btn_save = QPushButton("Simpan list.txt")
+        btn_save.setObjectName("btnBlue")
+
+        layout.addWidget(lbl)
+        layout.addWidget(text_edit)
+        layout.addWidget(btn_save)
+
+        def on_save():
+            content = text_edit.toPlainText().strip()
+            if not content:
+                QMessageBox.warning(dialog, "Peringatan", "List tidak boleh kosong!")
+                return
+            try:
+                with open(list_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                QMessageBox.information(dialog, "Berhasil", "list.txt berhasil disimpan di folder utama!")
+                dialog.accept()
+            except Exception as e:
+                QMessageBox.critical(dialog, "Error", f"Gagal menyimpan list.txt: {e}")
+
+        btn_save.clicked.connect(on_save)
+        dialog.exec()
+
+    def generate_html_files(self):
+        if not self.base_dir:
+            QMessageBox.warning(self, "Peringatan", "Silakan pilih folder utama atau buat list.txt terlebih dahulu!")
+            return
+            
+        list_path = os.path.join(self.base_dir, "list.txt")
+        if not os.path.exists(list_path):
+            QMessageBox.warning(self, "Peringatan", "File list.txt tidak ditemukan di folder utama.\nSilakan gunakan tombol 'Buat list.txt' terlebih dahulu.")
+            return
+
+        try:
+            with open(list_path, 'r', encoding='utf-8') as f:
+                lines = [line.strip() for line in f.readlines() if line.strip()]
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Gagal membaca list.txt: {e}")
+            return
+
+        if not lines:
+            QMessageBox.warning(self, "Peringatan", "File list.txt kosong!")
+            return
+
+        folder_name = os.path.basename(os.path.normpath(self.base_dir))
+        
+        # Bersihkan file list di antarmuka sebelum meng-generate
+        self.file_list.clear()
+
+        generated_files = []
+        total_files = len(lines)
+        
+        for i, title in enumerate(lines):
+            # Penamaan: Jika elemen terakhir, gunakan 'k', selain itu gunakan index 'i' (mulai dari 0)
+            if i == total_files - 1:
+                filename = f"{folder_name}.k.html"
+            else:
+                filename = f"{folder_name}.{i}.html"
+                
+            filepath = os.path.join(self.base_dir, filename)
+            
+            # HTML Boilerplate Dasar Kosong
+            html_content = f"""<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>{title}</title>
+</head>
+<body>
+    <h1>{title}</h1>
+    <p>Isi materi {title} belum dibuat...</p>
+</body>
+</html>"""
+            try:
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    f.write(html_content)
+                generated_files.append(filename)
+            except Exception as e:
+                print(f"Gagal menulis file {filename}: {e}")
+
+        self.file_list.addItems(generated_files)
+        QMessageBox.information(self, "Berhasil", f"{len(generated_files)} file HTML telah berhasil dibuat berdasarkan isi list.txt!")
 
     def add_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Pilih Folder")
@@ -635,7 +754,7 @@ class HTMLMergerApp(QMainWindow):
         self.file_list.clear()
         self.custom_titles.clear()
         self.file_bab_mapping.clear()
-        self.save_app_state_to_config() # Hapus juga di config
+        self.save_app_state_to_config()
         
         self.lbl_json_status.setText("Status: Default (Nama File)")
         self.settings.lbl_cover_status.setText("Belum ada file dipilih")
@@ -692,7 +811,6 @@ class HTMLMergerApp(QMainWindow):
         dialog_input.setMinimumSize(550, 450)
         layout_in = QVBoxLayout(dialog_input)
 
-        # Cek keberadaan file list.txt
         list_txt_path = os.path.join(self.base_dir, "list.txt") if self.base_dir else ""
         has_list_txt = os.path.exists(list_txt_path) if list_txt_path else False
 
@@ -883,7 +1001,6 @@ class HTMLMergerApp(QMainWindow):
 
             self.lbl_json_status.setText(f"<b><font color='#2980b9'>✓ Aktif: {os.path.basename(file_path)}</font></b>")
             
-            # Simpan pemuatan JSON ini ke config.json
             self.save_app_state_to_config()
             
             if show_message: QMessageBox.information(self, "Berhasil", "Data judul berhasil dimuat!")
@@ -897,6 +1014,8 @@ class HTMLMergerApp(QMainWindow):
         self.btn_settings.setEnabled(enabled)
         self.btn_add_folder.setEnabled(enabled)
         self.btn_add_files.setEnabled(enabled)
+        self.btn_create_list.setEnabled(enabled)
+        self.btn_auto_html.setEnabled(enabled)
         self.btn_delete.setEnabled(enabled)
         self.btn_clear.setEnabled(enabled)
         self.btn_ai_json.setEnabled(enabled) 
