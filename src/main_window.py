@@ -668,16 +668,27 @@ class HTMLMergerApp(QMainWindow):
             QMessageBox.warning(self, "Peringatan", "File list.txt kosong!")
             return
 
+        # --- AWAL KODE TAMBAHAN UNTUK KONFIRMASI ---
+        total_files = len(lines)
+        tanya = QMessageBox.question(
+            self, 
+            "Konfirmasi Pembuatan", 
+            f"Apakah Anda yakin ingin membuat {total_files} file HTML kosong secara otomatis di folder materi?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if tanya == QMessageBox.StandardButton.No:
+            return # Membatalkan proses jika pengguna memilih 'No'
+        # --- AKHIR KODE TAMBAHAN UNTUK KONFIRMASI ---
+
         folder_name = os.path.basename(os.path.normpath(self.base_dir))
         
-        # Bersihkan file list di antarmuka sebelum meng-generate
         self.file_list.clear()
 
         generated_files = []
-        total_files = len(lines)
         
         for i, title in enumerate(lines):
-            # Penamaan: Jika elemen terakhir, gunakan 'k', selain itu gunakan index 'i' (mulai dari 0)
             if i == total_files - 1:
                 filename = f"{folder_name}.k.html"
             else:
@@ -685,18 +696,7 @@ class HTMLMergerApp(QMainWindow):
                 
             filepath = os.path.join(self.base_dir, filename)
             
-            # HTML Boilerplate Dasar Kosong
-            html_content = f"""<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <title>{title}</title>
-</head>
-<body>
-    <h1>{title}</h1>
-    <p>Isi materi {title} belum dibuat...</p>
-</body>
-</html>"""
+            html_content = f""
             try:
                 with open(filepath, 'w', encoding='utf-8') as f:
                     f.write(html_content)
