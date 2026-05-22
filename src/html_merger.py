@@ -183,8 +183,9 @@ def generate_combined_html(files, options, progress_callback=None):
             body_content = soup.find('body')
             content = str(body_content.decode_contents()) if body_content else str(soup)
             
+            # KODE SETELAH DIPERBARUI:
             body_html += f"    <div class='section-container' id='{element_id}'>\n"
-            body_html += f"        <div style='font-size: {materi_font_size}pt; font-style: {m_font_style}; font-weight: {m_font_weight}; color: #555; margin-bottom: 15px;'>Materi: {display_title}</div>\n"
+            body_html += f"        <div style='font-size: {materi_font_size}pt; font-style: {m_font_style}; font-weight: {m_font_weight}; color: #555; margin-bottom: 15px;'>{display_title}</div>\n"
             body_html += content
             body_html += "\n    </div>\n"
         
