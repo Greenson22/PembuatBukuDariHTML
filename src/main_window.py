@@ -353,14 +353,16 @@ class HTMLMergerApp(QMainWindow):
         file, _ = QFileDialog.getOpenFileName(self, "Pilih File HTML Cover", "", "HTML Files (*.html)")
         if file:
             self.cover_file_path = file
-            self.lbl_cover_status.setText(f"File: {os.path.basename(file)}")
+            # Memberikan highlight tebal dan warna hijau sukses
+            self.lbl_cover_status.setText(f"<b><font color='#27ae60'>✓ File: {os.path.basename(file)}</font></b>")
 
     def select_cover_image(self):
         file, _ = QFileDialog.getOpenFileName(self, "Pilih Foto/PDF Cover", "", "Images & PDF (*.png *.jpg *.jpeg *.bmp *.pdf)")
         if file:
             self.cover_image_path = file
-            self.lbl_image_status.setText(f"File: {os.path.basename(file)}")
-
+            # Memberikan highlight tebal dan warna hijau sukses
+            self.lbl_image_status.setText(f"<b><font color='#27ae60'>✓ File: {os.path.basename(file)}</font></b>")
+    
     def add_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Pilih Folder")
         if folder:
@@ -373,15 +375,18 @@ class HTMLMergerApp(QMainWindow):
             for f in all_files:
                 f_lower = f.lower()
                 file_path = os.path.join(folder, f)
-                if f_lower == "meta.json": self._process_json_file(file_path, show_message=False)
+                if f_lower == "meta.json": 
+                    self._process_json_file(file_path, show_message=False)
                 elif f_lower == "cover.html":
                     self.radio_html_cover.setChecked(True)
                     self.cover_file_path = file_path
-                    self.lbl_cover_status.setText(f"File: {f}")
+                    # PERBAIKAN: Gunakan format highlight HTML
+                    self.lbl_cover_status.setText(f"<b><font color='#27ae60'>✓ File: {f}</font></b>")
                 elif f_lower.startswith("cover.") and f_lower.endswith(('.png', '.jpg', '.jpeg', '.bmp', '.pdf')):
                     self.radio_image_cover.setChecked(True)
                     self.cover_image_path = file_path
-                    self.lbl_image_status.setText(f"File: {f}")
+                    # PERBAIKAN: Gunakan format highlight HTML
+                    self.lbl_image_status.setText(f"<b><font color='#27ae60'>✓ File: {f}</font></b>")
                 elif f_lower.endswith('.html') and f_lower != "cover.html":
                     html_files.append(file_path)
 
@@ -404,10 +409,13 @@ class HTMLMergerApp(QMainWindow):
         self.file_list.clear()
         self.custom_titles.clear()
         self.file_bab_mapping.clear()
+        # Mengembalikan teks status ke default
         self.lbl_json_status.setText("Status: Default (Nama File)")
+        self.lbl_cover_status.setText("Belum ada file dipilih")
+        self.lbl_image_status.setText("Belum ada file dipilih")
         self.cover_file_path = None
         self.cover_image_path = None
-        self.base_dir = "" # Reset riwayat base_dir
+        self.base_dir = ""
         self.radio_no_cover.setChecked(True)
 
     def export_json_template(self):
@@ -464,7 +472,8 @@ class HTMLMergerApp(QMainWindow):
             else:
                 self.custom_titles = data
 
-            self.lbl_json_status.setText(f"Status: Menggunakan {os.path.basename(file_path)}")
+            # Memberikan highlight tebal berwarna biru/hijau penanda template aktif
+            self.lbl_json_status.setText(f"<b><font color='#2980b9'>✓ Aktif: {os.path.basename(file_path)}</font></b>")
             if show_message: QMessageBox.information(self, "Berhasil", "Data judul berhasil dimuat!")
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
