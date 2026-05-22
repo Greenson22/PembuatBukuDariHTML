@@ -523,6 +523,11 @@ class HTMLMergerApp(QMainWindow):
         hbox_file_actions.addWidget(self.btn_delete)
         hbox_file_actions.addWidget(self.btn_clear)
         l_file.addLayout(hbox_file_actions)
+
+        # TAMBAHAN TOMBOL: Hapus semua kecuali PDF dan ZIP
+        self.btn_delete_others = QPushButton("🗑️ Hapus Semua Kecuali PDF & ZIP")
+        self.btn_delete_others.setObjectName("btnRed")
+        l_file.addWidget(self.btn_delete_others)
         
         self.right_layout.addWidget(self.card_file)
         
@@ -547,6 +552,7 @@ class HTMLMergerApp(QMainWindow):
         
         self.right_layout.addWidget(self.card_list)
 
+        # Hubungkan semua sinyal (Connectors)
         self.btn_generate_html.clicked.connect(self.merge_to_html)
         self.btn_generate_pdf.clicked.connect(self.merge_to_pdf)
         self.btn_settings.clicked.connect(self.settings.exec) 
@@ -554,16 +560,53 @@ class HTMLMergerApp(QMainWindow):
         
         self.btn_add_folder.clicked.connect(self.add_folder)
         self.btn_add_files.clicked.connect(self.add_files)
-        self.btn_create_list.clicked.connect(self.create_list_txt) # Koneksi fungsi baru
-        self.btn_auto_html.clicked.connect(self.generate_html_files) # Koneksi fungsi baru
+        self.btn_create_list.clicked.connect(self.create_list_txt) 
+        self.btn_auto_html.clicked.connect(self.generate_html_files) 
         self.btn_delete.clicked.connect(self.delete_selected)
         self.btn_clear.clicked.connect(self.clear_all)
+        self.btn_delete_others.clicked.connect(self.delete_other_files) # Sinyal fungsi baru
+        
         self.btn_export_json.clicked.connect(self.export_json_template)
         self.btn_load_json.clicked.connect(self.load_json_titles)
         self.btn_ai_json.clicked.connect(self.show_ai_prompt_dialog)
 
         self.load_app_state_from_config()
         self.cb_group_bab.toggled.connect(self.save_app_state_to_config)
+
+    def delete_other_files(self):
+        """ Fungsi untuk menghapus seluruh isi di folder induk kecuali .pdf dan .zip """
+        if not self.base_dir:
+            QMessageBox.warning(self, "Peringatan", "Pilih folder utama (Folder Induk) terlebih dahulu!")
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Konfirmasi Penghapusan",
+            "Apakah Anda yakin ingin menghapus SEMUA file di dalam folder utama KECUALI file .pdf dan .zip?\n\nTindakan ini bersifat permanen dan tidak dapat dibatalkan!",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            deleted_count = 0
+            try:
+                for filename in os.listdir(self.base_dir):
+                    file_path = os.path.join(self.base_dir, filename)
+                    # Hanya menghapus jika merupakan file (bukan sub-folder)
+                    if os.path.isfile(file_path):
+                        ext = filename.lower()
+                        if not (ext.endswith('.pdf') or ext.endswith('.zip')):
+                            os.remove(file_path)
+                            deleted_count += 1
+                
+                # Simpan direktori sementara, lalu clear ui, dan kembalikan direktori 
+                temp_dir = self.base_dir
+                self.file_list.clear() # Bersihkan list agar tidak mengacu pada file yang telah dihapus
+                self.lbl_base_path.setText(f"Path Utama: {temp_dir}")
+                
+                QMessageBox.information(self, "Selesai", f"Berhasil menghapus {deleted_count} file (selain .pdf dan .zip).")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Terjadi kesalahan saat menghapus:\n{e}")
 
     def load_app_state_from_config(self):
         try:
@@ -668,7 +711,6 @@ class HTMLMergerApp(QMainWindow):
             QMessageBox.warning(self, "Peringatan", "File list.txt kosong!")
             return
 
-        # --- AWAL KODE TAMBAHAN UNTUK KONFIRMASI ---
         total_files = len(lines)
         tanya = QMessageBox.question(
             self, 
@@ -679,11 +721,9 @@ class HTMLMergerApp(QMainWindow):
         )
         
         if tanya == QMessageBox.StandardButton.No:
-            return # Membatalkan proses jika pengguna memilih 'No'
-        # --- AKHIR KODE TAMBAHAN UNTUK KONFIRMASI ---
+            return
 
         folder_name = os.path.basename(os.path.normpath(self.base_dir))
-        
         self.file_list.clear()
 
         generated_files = []
@@ -1024,6 +1064,7 @@ class HTMLMergerApp(QMainWindow):
         self.btn_auto_html.setEnabled(enabled)
         self.btn_delete.setEnabled(enabled)
         self.btn_clear.setEnabled(enabled)
+        self.btn_delete_others.setEnabled(enabled) # Set UI enabled
         self.btn_ai_json.setEnabled(enabled) 
 
     def _get_export_options(self, is_pdf):
