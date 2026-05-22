@@ -5,7 +5,9 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QListWidget, QFileDialog, 
                              QLabel, QLineEdit, QMessageBox, QCheckBox, QProgressBar,
                              QComboBox, QRadioButton, QButtonGroup, QScrollArea, 
-                             QSpinBox, QFrame, QApplication, QDialog, QDialogButtonBox)
+                             QSpinBox, QFrame, QApplication, QDialog, QDialogButtonBox, 
+                             QSizePolicy)
+                             
 
 from styles import get_modern_theme
 from pdf_worker import PDFWorker
@@ -310,11 +312,12 @@ class HTMLMergerApp(QMainWindow):
         self.right_layout = QVBoxLayout()
         self.right_layout.setSpacing(15)
         
-        # Split rasio layout 5:5 mirip gambar
+        # Split rasio layout 5:5 sesuai gambar referensi
         self.content_layout.addLayout(self.left_layout, stretch=5) 
         self.content_layout.addLayout(self.right_layout, stretch=5) 
+        
+        # Masukkan content_widget ke dalam main_layout
         self.main_layout.addWidget(self.content_widget)
-        self.main_layout.addStretch()
 
         # ================= BAGIAN KIRI =================
         
@@ -441,7 +444,10 @@ class HTMLMergerApp(QMainWindow):
         
         self.file_list = QListWidget()
         self.file_list.setDragDropMode(QListWidget.DragDropMode.InternalMove)
-        self.file_list.setMinimumHeight(250) 
+        # Mengatur ukuran minimum, namun membiarkannya membesar tanpa batas saat di-maximize
+        self.file_list.setMinimumHeight(350)
+        # Tambahkan ini agar list otomatis memanjang mengikuti tinggi layar Ubuntu
+        self.file_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         l_list.addWidget(self.file_list)
         
         self.right_layout.addWidget(self.card_list)
