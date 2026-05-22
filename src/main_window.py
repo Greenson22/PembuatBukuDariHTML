@@ -884,7 +884,10 @@ class HTMLMergerApp(QMainWindow):
                     '      "nama_file2.html": "Judul Sub-materi 2"\n'
                     "    }\n"
                     "  }\n"
-                    "}"
+                    "}\n\n"
+                    "Catatan penting untuk penamaan sub-materi:\n"
+                    "- File dengan akhiran '.0.html' adalah Pengantar dari materi tersebut.\n"
+                    "- File dengan akhiran '.k.html' adalah Kesimpulan dari materi tersebut."
                 )
             else:
                 instruksi_struktur = (
@@ -897,7 +900,10 @@ class HTMLMergerApp(QMainWindow):
                     '    "nama_file1.html": "Judul Kustom Materi 1",\n'
                     '    "nama_file2.html": "Judul Kustom Materi 2"\n'
                     "  }\n"
-                    "}"
+                    "}\n\n"
+                    "Catatan penting untuk penamaan judul kustom:\n"
+                    "- File dengan akhiran '.0.html' adalah 'Pengantar''.\n"
+                    "- File dengan akhiran '.k.html' adalah 'Kesimpulan'."
                 )
 
             prompt = (
