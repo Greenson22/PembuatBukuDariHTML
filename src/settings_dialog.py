@@ -1,0 +1,355 @@
+import os
+import json
+from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
+                             QComboBox, QWidget, QSpinBox, QRadioButton, 
+                             QButtonGroup, QPushButton, QLineEdit, QCheckBox, 
+                             QMessageBox, QFileDialog)
+
+class SettingsDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Pengaturan Dokumen")
+        self.setMinimumWidth(600)
+        
+        self.cover_file_path = None
+        self.cover_image_path = None
+        self._is_updating_margins = False
+        self.config_file = "config.json"
+        
+        self.init_ui()
+        self.load_settings()
+
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setSpacing(15)
+
+        # 1. Ukuran Kertas
+        size_layout = QHBoxLayout()
+        size_label = QLabel("Ukuran Kertas (PDF):")
+        size_label.setObjectName("sectionLabel")
+        self.combo_size = QComboBox()
+        self.combo_size.addItems(["A4", "Letter", "Legal", "A3", "A5"])
+        self.combo_size.setCurrentText("A4") 
+        size_layout.addWidget(size_label)
+        size_layout.addWidget(self.combo_size)
+        size_layout.addStretch()
+        layout.addLayout(size_layout)
+
+        # 2. Pengaturan Margin
+        margin_title = QLabel("Pengaturan Margin (PDF):")
+        margin_title.setObjectName("sectionLabel")
+        layout.addWidget(margin_title)
+
+        preset_layout = QHBoxLayout()
+        self.combo_margin_preset = QComboBox()
+        self.combo_margin_preset.addItems([
+            "Normal (Atas/Bawah 25mm, Kiri/Kanan 25mm)",
+            "Sempit / Narrow (13mm)",
+            "Moderat (Atas/Bawah 25mm, Kiri/Kanan 19mm)",
+            "Lebar / Wide (Atas/Bawah 25mm, Kiri/Kanan 51mm)",
+            "Tanpa Margin (0mm)",
+            "Kustom / Manual"
+        ])
+        self.combo_margin_preset.setCurrentIndex(1)
+        preset_layout.addWidget(QLabel("Gaya Margin:"))
+        preset_layout.addWidget(self.combo_margin_preset)
+        preset_layout.addStretch()
+        layout.addLayout(preset_layout)
+
+        self.custom_margin_widget = QWidget()
+        custom_margin_layout = QHBoxLayout(self.custom_margin_widget)
+        custom_margin_layout.setContentsMargins(0, 0, 0, 0)
+        self.spin_margin_top = self.create_margin_spinbox("Atas:", 13, custom_margin_layout)
+        self.spin_margin_bottom = self.create_margin_spinbox("Bawah:", 13, custom_margin_layout)
+        self.spin_margin_left = self.create_margin_spinbox("Kiri:", 13, custom_margin_layout)
+        self.spin_margin_right = self.create_margin_spinbox("Kanan:", 13, custom_margin_layout)
+        custom_margin_layout.addStretch()
+        layout.addWidget(self.custom_margin_widget)
+        self.custom_margin_widget.setVisible(False) 
+
+        # 3. Pengaturan Cover
+        cover_label = QLabel("Pengaturan Cover (Sampul Depan):")
+        cover_label.setObjectName("sectionLabel")
+        layout.addWidget(cover_label)
+
+        cover_layout = QHBoxLayout()
+        self.radio_no_cover = QRadioButton("Tanpa Cover")
+        self.radio_no_cover.setChecked(True)
+        self.radio_html_cover = QRadioButton("Gunakan File HTML")
+        self.radio_image_cover = QRadioButton("Gunakan Foto/PDF")
+        self.radio_text_cover = QRadioButton("Judul Sederhana")
+
+        self.cover_group = QButtonGroup()
+        self.cover_group.addButton(self.radio_no_cover)
+        self.cover_group.addButton(self.radio_html_cover)
+        self.cover_group.addButton(self.radio_image_cover)
+        self.cover_group.addButton(self.radio_text_cover)
+
+        cover_layout.addWidget(self.radio_no_cover)
+        cover_layout.addWidget(self.radio_html_cover)
+        cover_layout.addWidget(self.radio_image_cover)
+        cover_layout.addWidget(self.radio_text_cover)
+        cover_layout.addStretch()
+        layout.addLayout(cover_layout)
+
+        cover_input_layout = QHBoxLayout()
+        self.btn_select_cover = QPushButton("Pilih HTML Cover")
+        self.btn_select_cover.setObjectName("btnInfo")
+        self.btn_select_cover.setVisible(False)
+        self.lbl_cover_status = QLabel("Belum ada file dipilih")
+        self.lbl_cover_status.setVisible(False)
+
+        self.btn_select_image = QPushButton("Pilih Foto/PDF")
+        self.btn_select_image.setObjectName("btnInfo")
+        self.btn_select_image.setVisible(False)
+        self.lbl_image_status = QLabel("Belum ada file dipilih")
+        self.lbl_image_status.setVisible(False)
+        
+        self.input_cover_title = QLineEdit()
+        self.input_cover_title.setPlaceholderText("Masukkan Judul Cover Dokumen...")
+        self.input_cover_title.setVisible(False)
+
+        cover_input_layout.addWidget(self.btn_select_cover)
+        cover_input_layout.addWidget(self.lbl_cover_status)
+        cover_input_layout.addWidget(self.btn_select_image)
+        cover_input_layout.addWidget(self.lbl_image_status)
+        cover_input_layout.addWidget(self.input_cover_title)
+        layout.addLayout(cover_input_layout)
+
+        # 4. Pengaturan Teks / Penulis (Khusus PDF)
+        layout.addWidget(QLabel("Pengaturan Teks / Penulis (Khusus PDF):", objectName="sectionLabel"))
+        hf_input_layout = QHBoxLayout()
+        self.input_author = QLineEdit("F. R. Gerung") 
+        self.combo_hf_pos = QComboBox()
+        self.combo_hf_pos.addItems(["Header", "Footer"]) 
+        self.combo_hf_align = QComboBox()
+        self.combo_hf_align.addItems(["Kiri", "Tengah", "Kanan"]) 
+        
+        hf_input_layout.addWidget(QLabel("Teks:"))
+        hf_input_layout.addWidget(self.input_author)
+        hf_input_layout.addWidget(self.combo_hf_pos)
+        hf_input_layout.addWidget(self.combo_hf_align)
+        layout.addLayout(hf_input_layout)
+
+        # 5. Pengaturan Visual Judul BAB
+        layout.addWidget(QLabel("Pengaturan Visual Judul BAB (Jika Aktif):", objectName="sectionLabel"))
+        bab_inputs = QHBoxLayout()
+        self.combo_bab_style = QComboBox()
+        self.combo_bab_style.addItems(["Minimalis Elegan", "Klasik Tengah (Default)", "Modern Kiri (Garis Bawah)", "Blok Latar Warna"])
+        self.spin_bab_size = QSpinBox()
+        self.spin_bab_size.setRange(16, 100)
+        self.spin_bab_size.setValue(16) 
+        bab_inputs.addWidget(QLabel("Tema BAB:"))
+        bab_inputs.addWidget(self.combo_bab_style)
+        bab_inputs.addWidget(QLabel("Ukuran Font:"))
+        bab_inputs.addWidget(self.spin_bab_size)
+        bab_inputs.addStretch()
+        layout.addLayout(bab_inputs)
+
+        # 6. Pengaturan Visual Judul File (Materi)
+        layout.addWidget(QLabel("Pengaturan Visual Judul File (Materi):", objectName="sectionLabel"))
+        materi_inputs = QHBoxLayout()
+        self.combo_materi_style = QComboBox()
+        self.combo_materi_style.addItems(["Miring (Italic)", "Normal", "Tebal (Bold)", "Tebal & Miring"])
+        self.spin_materi_size = QSpinBox()
+        self.spin_materi_size.setRange(8, 36)
+        self.spin_materi_size.setValue(12)
+        materi_inputs.addWidget(QLabel("Gaya Teks:"))
+        materi_inputs.addWidget(self.combo_materi_style)
+        materi_inputs.addWidget(QLabel("Ukuran Font:"))
+        materi_inputs.addWidget(self.spin_materi_size)
+        materi_inputs.addStretch()
+        layout.addLayout(materi_inputs)
+
+        layout.addStretch()
+
+        # Pengaturan Umum Dokumen
+        layout.addWidget(QLabel("Pengaturan Umum Dokumen:", objectName="sectionLabel"))
+        self.cb_toc = QCheckBox("Buat Daftar Isi Otomatis")
+        self.cb_toc.setChecked(True)
+        self.cb_page_numbers = QCheckBox("Tambahkan Nomor Halaman (Khusus Ekspor PDF)")
+        self.cb_page_numbers.setChecked(True)
+        self.cb_auto_export = QCheckBox("Ekspor langsung ke folder aktif (tanpa dialog popup)")
+        self.cb_auto_export.setChecked(False)
+        
+        layout.addWidget(self.cb_toc)
+        layout.addWidget(self.cb_page_numbers)
+        layout.addWidget(self.cb_auto_export)
+        
+        action_layout = QHBoxLayout()
+        self.btn_reset = QPushButton("Kembalikan ke Default")
+        self.btn_reset.setObjectName("btnGray")
+        
+        self.btn_save = QPushButton("Simpan & Tutup")
+        self.btn_save.setObjectName("btnBlue")
+        
+        action_layout.addWidget(self.btn_reset)
+        action_layout.addWidget(self.btn_save)
+        layout.addLayout(action_layout)
+
+        # Connections
+        self.combo_margin_preset.currentIndexChanged.connect(self.apply_margin_preset)
+        self.radio_no_cover.toggled.connect(self.toggle_cover_options)
+        self.radio_html_cover.toggled.connect(self.toggle_cover_options)
+        self.radio_image_cover.toggled.connect(self.toggle_cover_options)
+        self.radio_text_cover.toggled.connect(self.toggle_cover_options)
+        self.btn_select_cover.clicked.connect(self.select_cover_file)
+        self.btn_select_image.clicked.connect(self.select_cover_image)
+        self.btn_reset.clicked.connect(self.reset_to_default)
+        self.btn_save.clicked.connect(self.save_settings)
+
+        self.apply_margin_preset()
+
+    def save_settings(self):
+        config_data = {}
+        if os.path.exists(self.config_file):
+            try:
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    config_data = json.load(f)
+            except:
+                pass
+                
+        config_data.update({
+            "combo_size": self.combo_size.currentText(),
+            "combo_margin_preset": self.combo_margin_preset.currentIndex(),
+            "spin_margin_top": self.spin_margin_top.value(),
+            "spin_margin_bottom": self.spin_margin_bottom.value(),
+            "spin_margin_left": self.spin_margin_left.value(),
+            "spin_margin_right": self.spin_margin_right.value(),
+            "cover_type": "html" if self.radio_html_cover.isChecked() else "image" if self.radio_image_cover.isChecked() else "text" if self.radio_text_cover.isChecked() else "none",
+            "input_author": self.input_author.text(),
+            "combo_hf_pos": self.combo_hf_pos.currentText(),
+            "combo_hf_align": self.combo_hf_align.currentText(),
+            "combo_bab_style": self.combo_bab_style.currentText(),
+            "spin_bab_size": self.spin_bab_size.value(),
+            "combo_materi_style": self.combo_materi_style.currentText(),
+            "spin_materi_size": self.spin_materi_size.value(),
+            "cb_toc": self.cb_toc.isChecked(),
+            "cb_page_numbers": self.cb_page_numbers.isChecked(),
+            "cb_auto_export": self.cb_auto_export.isChecked()
+        })
+        try:
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, indent=4)
+            self.accept()
+        except Exception as e:
+            QMessageBox.warning(self, "Gagal", f"Gagal menyimpan pengaturan:\n{str(e)}")
+
+    def load_settings(self):
+        if not os.path.exists(self.config_file):
+            return
+            
+        try:
+            with open(self.config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                
+            self.combo_size.setCurrentText(config.get("combo_size", "A4"))
+            self.combo_margin_preset.setCurrentIndex(config.get("combo_margin_preset", 1))
+            self.spin_margin_top.setValue(config.get("spin_margin_top", 13))
+            self.spin_margin_bottom.setValue(config.get("spin_margin_bottom", 13))
+            self.spin_margin_left.setValue(config.get("spin_margin_left", 13))
+            self.spin_margin_right.setValue(config.get("spin_margin_right", 13))
+            
+            cover = config.get("cover_type", "none")
+            if cover == "html": self.radio_html_cover.setChecked(True)
+            elif cover == "image": self.radio_image_cover.setChecked(True)
+            elif cover == "text": self.radio_text_cover.setChecked(True)
+            else: self.radio_no_cover.setChecked(True)
+            
+            self.input_author.setText(config.get("input_author", "F. R. Gerung"))
+            self.combo_hf_pos.setCurrentText(config.get("combo_hf_pos", "Header"))
+            self.combo_hf_align.setCurrentText(config.get("combo_hf_align", "Kiri"))
+            self.combo_bab_style.setCurrentText(config.get("combo_bab_style", "Klasik Tengah (Default)"))
+            self.spin_bab_size.setValue(config.get("spin_bab_size", 16))
+            self.combo_materi_style.setCurrentText(config.get("combo_materi_style", "Normal"))
+            self.spin_materi_size.setValue(config.get("spin_materi_size", 12))
+            
+            self.cb_toc.setChecked(config.get("cb_toc", True))
+            self.cb_page_numbers.setChecked(config.get("cb_page_numbers", True))
+            self.cb_auto_export.setChecked(config.get("cb_auto_export", False))
+            
+        except Exception as e:
+            print(f"Gagal memuat pengaturan: {e}")
+
+    def reset_to_default(self):
+        self.combo_size.setCurrentText("A4")
+        self.combo_margin_preset.setCurrentIndex(1)
+        self._set_spin_margins(13, 13, 13, 13)
+        self.radio_no_cover.setChecked(True)
+        self.input_author.setText("F. R. Gerung")
+        self.combo_hf_pos.setCurrentText("Header")
+        self.combo_hf_align.setCurrentText("Kiri")
+        self.combo_bab_style.setCurrentText("Klasik Tengah (Default)")
+        self.spin_bab_size.setValue(16)
+        self.combo_materi_style.setCurrentText("Normal")
+        self.spin_materi_size.setValue(12)
+        self.cb_toc.setChecked(True)
+        self.cb_page_numbers.setChecked(True)
+        self.cb_auto_export.setChecked(False)
+        
+        self.cover_file_path = None
+        self.cover_image_path = None
+        self.lbl_cover_status.setText("Belum ada file dipilih")
+        self.lbl_image_status.setText("Belum ada file dipilih")
+        self.input_cover_title.clear()
+        
+        QMessageBox.information(self, "Reset", "Pengaturan telah dikembalikan ke standar bawaan.")
+
+    def create_margin_spinbox(self, label_text, default_value, parent_layout):
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0,0,10,0)
+        lbl = QLabel(label_text)
+        spin = QSpinBox()
+        spin.setRange(0, 500)
+        spin.setValue(default_value)
+        spin.setSuffix(" mm")
+        layout.addWidget(lbl)
+        layout.addWidget(spin)
+        parent_layout.addLayout(layout)
+        return spin
+
+    def apply_margin_preset(self):
+        if self._is_updating_margins: return
+        self._is_updating_margins = True
+        text = self.combo_margin_preset.currentText()
+        self.custom_margin_widget.setVisible("Kustom" in text)
+        if "Normal" in text: self._set_spin_margins(25, 25, 25, 25)
+        elif "Sempit" in text: self._set_spin_margins(13, 13, 13, 13)
+        elif "Moderat" in text: self._set_spin_margins(25, 25, 19, 19)
+        elif "Lebar" in text: self._set_spin_margins(25, 25, 51, 51)
+        elif "Tanpa" in text: self._set_spin_margins(0, 0, 0, 0)
+        self._is_updating_margins = False
+
+    def _set_spin_margins(self, top, bottom, left, right):
+        self.spin_margin_top.setValue(top)
+        self.spin_margin_bottom.setValue(bottom)
+        self.spin_margin_left.setValue(left)
+        self.spin_margin_right.setValue(right)
+
+    def toggle_cover_options(self):
+        self.btn_select_cover.setVisible(False)
+        self.lbl_cover_status.setVisible(False)
+        self.input_cover_title.setVisible(False)
+        self.btn_select_image.setVisible(False)
+        self.lbl_image_status.setVisible(False)
+
+        if self.radio_html_cover.isChecked():
+            self.btn_select_cover.setVisible(True)
+            self.lbl_cover_status.setVisible(True)
+        elif self.radio_text_cover.isChecked():
+            self.input_cover_title.setVisible(True)
+        elif self.radio_image_cover.isChecked():
+            self.btn_select_image.setVisible(True)
+            self.lbl_image_status.setVisible(True)
+
+    def select_cover_file(self):
+        file, _ = QFileDialog.getOpenFileName(self, "Pilih File HTML Cover", "", "HTML Files (*.html)")
+        if file:
+            self.cover_file_path = file
+            self.lbl_cover_status.setText(f"<b><font color='#27ae60'>✓ File: {os.path.basename(file)}</font></b>")
+
+    def select_cover_image(self):
+        file, _ = QFileDialog.getOpenFileName(self, "Pilih Foto/PDF Cover", "", "Images & PDF (*.png *.jpg *.jpeg *.bmp *.pdf)")
+        if file:
+            self.cover_image_path = file
+            self.lbl_image_status.setText(f"<b><font color='#27ae60'>✓ File: {os.path.basename(file)}</font></b>")
