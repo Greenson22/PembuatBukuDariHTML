@@ -380,7 +380,7 @@ class HTMLMergerApp(QMainWindow):
         # ================= CONTENT AREA =================
         self.content_widget = QWidget()
         self.content_layout = QHBoxLayout(self.content_widget)
-        self.content_layout.setContentsMargins(25, 40, 25, 25)
+        self.content_layout.setContentsMargins(25, 25, 25, 25)
         self.content_layout.setSpacing(20)
 
         self.left_layout = QVBoxLayout()
@@ -514,6 +514,14 @@ class HTMLMergerApp(QMainWindow):
         lbl_list.setProperty("class", "CardTitle")
         l_list.addWidget(lbl_list)
         
+        # TAMBAHKAN DUA BARIS INI:
+        # Membuat label baru untuk menampilkan path folder utama yang sedang aktif
+        self.lbl_base_path = QLabel("Path Utama: Belum ada folder dipilih")
+        self.lbl_base_path.setStyleSheet("color: #7f8c8d; font-size: 12px; margin-bottom: 5px;")
+        l_list.addWidget(self.lbl_base_path)
+        
+        self.file_list = QListWidget()
+        
         self.file_list = QListWidget()
         self.file_list.setDragDropMode(QListWidget.DragDropMode.InternalMove)
         self.file_list.setMinimumHeight(350)
@@ -539,6 +547,9 @@ class HTMLMergerApp(QMainWindow):
         if folder:
             if not self.base_dir:
                 self.base_dir = folder
+            
+            # Memperbarui teks label dengan path folder yang baru saja dipilih
+            self.lbl_base_path.setText(f"Path Utama: {self.base_dir}")
                 
             all_files = os.listdir(folder)
             html_files = []
@@ -589,6 +600,9 @@ class HTMLMergerApp(QMainWindow):
         self.settings.cover_image_path = None
         self.base_dir = ""
         self.settings.radio_no_cover.setChecked(True)
+
+        # Mengembalikan teks label menjadi default saat data dibersihkan
+        self.lbl_base_path.setText("Path Utama: Belum ada folder dipilih")
 
     def export_json_template(self):
         count = self.file_list.count()
