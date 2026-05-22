@@ -375,17 +375,17 @@ class HTMLMergerApp(QMainWindow):
             for f in all_files:
                 f_lower = f.lower()
                 file_path = os.path.join(folder, f)
-                if f_lower == "meta.json": 
+                
+                # PERBAIKAN: Deteksi meta.json atau template_judul.json yang diekspor sebelumnya
+                if f_lower in ["meta.json", "template_judul.json"]: 
                     self._process_json_file(file_path, show_message=False)
                 elif f_lower == "cover.html":
                     self.radio_html_cover.setChecked(True)
                     self.cover_file_path = file_path
-                    # PERBAIKAN: Gunakan format highlight HTML
                     self.lbl_cover_status.setText(f"<b><font color='#27ae60'>✓ File: {f}</font></b>")
                 elif f_lower.startswith("cover.") and f_lower.endswith(('.png', '.jpg', '.jpeg', '.bmp', '.pdf')):
                     self.radio_image_cover.setChecked(True)
                     self.cover_image_path = file_path
-                    # PERBAIKAN: Gunakan format highlight HTML
                     self.lbl_image_status.setText(f"<b><font color='#27ae60'>✓ File: {f}</font></b>")
                 elif f_lower.endswith('.html') and f_lower != "cover.html":
                     html_files.append(file_path)
