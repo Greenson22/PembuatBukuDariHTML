@@ -206,7 +206,16 @@ class SettingsDialog(QDialog):
         self.apply_margin_preset()
 
     def save_settings(self):
-        config_data = {
+        # Saat menyimpan, pertahankan juga konfigurasi khusus HTMLMergerApp yang sudah ada
+        config_data = {}
+        if os.path.exists(self.config_file):
+            try:
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    config_data = json.load(f)
+            except:
+                pass
+                
+        config_data.update({
             "combo_size": self.combo_size.currentText(),
             "combo_margin_preset": self.combo_margin_preset.currentIndex(),
             "spin_margin_top": self.spin_margin_top.value(),
@@ -223,7 +232,7 @@ class SettingsDialog(QDialog):
             "spin_materi_size": self.spin_materi_size.value(),
             "cb_toc": self.cb_toc.isChecked(),
             "cb_page_numbers": self.cb_page_numbers.isChecked()
-        }
+        })
         try:
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(config_data, f, indent=4)
@@ -421,7 +430,6 @@ class HTMLMergerApp(QMainWindow):
         self.btn_settings.setObjectName("btnPurple")
         l_exec.addWidget(self.btn_settings)
 
-        # --- TOMBOL BARU UNTUK ZIP ---
         self.btn_create_zip = QPushButton("📦 Buat Arsip ZIP (Kecuali PDF)")
         self.btn_create_zip.setObjectName("btnDarkGray")
         l_exec.addWidget(self.btn_create_zip)
@@ -458,15 +466,12 @@ class HTMLMergerApp(QMainWindow):
         self.btn_export_json.setObjectName("btnDarkGray")
         self.btn_load_json = QPushButton("2. Muat Judul JSON")
         self.btn_load_json.setObjectName("btnDarkGray")
-
-        # --- KODE BARU DIMULAI DI SINI ---
         self.btn_ai_json = QPushButton("3. Buat JSON via AI Chat (Copy/Paste)")
         self.btn_ai_json.setObjectName("btnBlue")
-        # --- KODE BARU BERAKHIR DI SINI ---
         
         l_json.addWidget(self.btn_export_json)
         l_json.addWidget(self.btn_load_json)
-        l_json.addWidget(self.btn_ai_json) # Tambahkan tombol baru ke layout
+        l_json.addWidget(self.btn_ai_json)
         
         self.left_layout.addWidget(self.card_json)
         
@@ -520,13 +525,9 @@ class HTMLMergerApp(QMainWindow):
         lbl_list.setProperty("class", "CardTitle")
         l_list.addWidget(lbl_list)
         
-        # TAMBAHKAN DUA BARIS INI:
-        # Membuat label baru untuk menampilkan path folder utama yang sedang aktif
         self.lbl_base_path = QLabel("Path Utama: Belum ada folder dipilih")
         self.lbl_base_path.setStyleSheet("color: #7f8c8d; font-size: 12px; margin-bottom: 5px;")
         l_list.addWidget(self.lbl_base_path)
-        
-        self.file_list = QListWidget()
         
         self.file_list = QListWidget()
         self.file_list.setDragDropMode(QListWidget.DragDropMode.InternalMove)
@@ -539,7 +540,7 @@ class HTMLMergerApp(QMainWindow):
         self.btn_generate_html.clicked.connect(self.merge_to_html)
         self.btn_generate_pdf.clicked.connect(self.merge_to_pdf)
         self.btn_settings.clicked.connect(self.settings.exec) 
-        self.btn_create_zip.clicked.connect(self.create_zip_archive) # Connect tombol ZIP
+        self.btn_create_zip.clicked.connect(self.create_zip_archive) 
         
         self.btn_add_folder.clicked.connect(self.add_folder)
         self.btn_add_files.clicked.connect(self.add_files)
@@ -547,7 +548,45 @@ class HTMLMergerApp(QMainWindow):
         self.btn_clear.clicked.connect(self.clear_all)
         self.btn_export_json.clicked.connect(self.export_json_template)
         self.btn_load_json.clicked.connect(self.load_json_titles)
-        self.btn_ai_json.clicked.connect(self.show_ai_prompt_dialog) # Koneksi baru
+        self.btn_ai_json.clicked.connect(self.show_ai_prompt_dialog)
+
+        # Muat status spesifik App dari config.json
+        self.load_app_state_from_config()
+        # Hubungkan fungsi auto-save ke config.json setiap status toggle berubah
+        self.cb_group_bab.toggled.connect(self.save_app_state_to_config)
+
+    def load_app_state_from_config(self):
+        try:
+            if os.path.exists(self.settings.config_file):
+                with open(self.settings.config_file, 'r', encoding='utf-8') as f:
+                    cfg = json.load(f)
+                    if "cb_group_bab" in cfg:
+                        self.cb_group_bab.setChecked(cfg["cb_group_bab"])
+                    if "custom_titles" in cfg:
+                        self.custom_titles = cfg["custom_titles"]
+                    if "file_bab_mapping" in cfg:
+                        self.file_bab_mapping = cfg["file_bab_mapping"]
+                    
+                    if self.custom_titles or self.file_bab_mapping:
+                        self.lbl_json_status.setText("<b><font color='#2980b9'>✓ Aktif: Dimuat dari Config</font></b>")
+        except Exception as e:
+            print(f"Gagal memuat state app dari config: {e}")
+
+    def save_app_state_to_config(self, *args):
+        try:
+            cfg = {}
+            if os.path.exists(self.settings.config_file):
+                with open(self.settings.config_file, 'r', encoding='utf-8') as f:
+                    cfg = json.load(f)
+            
+            cfg["cb_group_bab"] = self.cb_group_bab.isChecked()
+            cfg["custom_titles"] = self.custom_titles
+            cfg["file_bab_mapping"] = self.file_bab_mapping
+            
+            with open(self.settings.config_file, 'w', encoding='utf-8') as f:
+                json.dump(cfg, f, indent=4)
+        except Exception as e:
+            print(f"Gagal menyimpan state app ke config: {e}")
 
     def add_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Pilih Folder")
@@ -555,7 +594,6 @@ class HTMLMergerApp(QMainWindow):
             if not self.base_dir:
                 self.base_dir = folder
             
-            # Memperbarui teks label dengan path folder yang baru saja dipilih
             self.lbl_base_path.setText(f"Path Utama: {self.base_dir}")
                 
             all_files = os.listdir(folder)
@@ -564,7 +602,7 @@ class HTMLMergerApp(QMainWindow):
                 f_lower = f.lower()
                 file_path = os.path.join(folder, f)
                 
-                if f_lower in ["meta.json", "template_judul.json"]: 
+                if f_lower in ["meta.json", "template_judul.json", "template_ai.json"]: 
                     self._process_json_file(file_path, show_message=False)
                 elif f_lower == "cover.html":
                     self.settings.radio_html_cover.setChecked(True)
@@ -578,7 +616,6 @@ class HTMLMergerApp(QMainWindow):
                     html_files.append(file_path)
 
             html_files.sort()
-            # Hanya tampilkan nama file pada QListWidget
             file_names_only = [os.path.basename(f) for f in html_files]
             self.file_list.addItems(file_names_only)
 
@@ -587,7 +624,6 @@ class HTMLMergerApp(QMainWindow):
         if files: 
             if not self.base_dir:
                 self.base_dir = os.path.dirname(files[0])
-            # Hanya tampilkan nama file pada QListWidget
             file_names_only = [os.path.basename(f) for f in files]
             self.file_list.addItems(file_names_only)
 
@@ -599,6 +635,7 @@ class HTMLMergerApp(QMainWindow):
         self.file_list.clear()
         self.custom_titles.clear()
         self.file_bab_mapping.clear()
+        self.save_app_state_to_config() # Hapus juga di config
         
         self.lbl_json_status.setText("Status: Default (Nama File)")
         self.settings.lbl_cover_status.setText("Belum ada file dipilih")
@@ -608,7 +645,6 @@ class HTMLMergerApp(QMainWindow):
         self.base_dir = ""
         self.settings.radio_no_cover.setChecked(True)
 
-        # Mengembalikan teks label menjadi default saat data dibersihkan
         self.lbl_base_path.setText("Path Utama: Belum ada folder dipilih")
 
     def export_json_template(self):
@@ -617,7 +653,11 @@ class HTMLMergerApp(QMainWindow):
             QMessageBox.warning(self, "Peringatan", "Tambahkan file HTML terlebih dahulu!")
             return
 
-        template_data = {"judul_utama": "Masukkan Judul Dokumen Utama Di Sini", "struktur": {}}
+        judul_utama = "Masukkan Judul Dokumen Utama Di Sini"
+        if self.base_dir:
+            judul_utama = os.path.basename(os.path.normpath(self.base_dir))
+
+        template_data = {"judul_utama": judul_utama, "struktur": {}}
         if self.cb_group_bab.isChecked():
             bab_dict = {os.path.basename(self.file_list.item(i).text()): os.path.basename(self.file_list.item(i).text()).replace('.html', '').title() for i in range(count)}
             template_data["struktur"]["BAB 1: Pendahuluan"] = bab_dict
@@ -645,16 +685,32 @@ class HTMLMergerApp(QMainWindow):
             QMessageBox.warning(self, "Peringatan", "Tambahkan file HTML materi terlebih dahulu ke daftar sebelum membuat struktur JSON!")
             return
 
-        # Ambil semua nama file yang ada di list aplikasi saat ini
         file_names = [os.path.basename(self.file_list.item(i).text()) for i in range(count)]
 
-        # --- Dialog 1: Input Poin Materi ---
         dialog_input = QDialog(self)
         dialog_input.setWindowTitle("Langkah 1: Input Poin Materi")
-        dialog_input.setMinimumSize(500, 400)
+        dialog_input.setMinimumSize(550, 450)
         layout_in = QVBoxLayout(dialog_input)
 
-        # Menyesuaikan label instruksi berdasarkan status checkbox BAB
+        # Cek keberadaan file list.txt
+        list_txt_path = os.path.join(self.base_dir, "list.txt") if self.base_dir else ""
+        has_list_txt = os.path.exists(list_txt_path) if list_txt_path else False
+
+        radio_manual = None
+        radio_list = None
+        
+        if has_list_txt:
+            radio_layout = QHBoxLayout()
+            radio_layout.addWidget(QLabel("<b>Sumber Poin Materi:</b>"))
+            radio_manual = QRadioButton("Input Manual")
+            radio_list = QRadioButton("Gunakan file list.txt")
+            radio_list.setChecked(True)
+            
+            radio_layout.addWidget(radio_list)
+            radio_layout.addWidget(radio_manual)
+            radio_layout.addStretch()
+            layout_in.addLayout(radio_layout)
+
         if self.cb_group_bab.isChecked():
             lbl_text = "Masukkan daftar poin-poin/BAB materi (pisahkan dengan baris baru):"
             placeholder_text = "Contoh:\nPengenalan Sistem\nArsitektur Dasar\nKesimpulan"
@@ -666,6 +722,21 @@ class HTMLMergerApp(QMainWindow):
         text_in = QTextEdit()
         text_in.setPlaceholderText(placeholder_text)
         
+        if has_list_txt:
+            def toggle_input_mode():
+                if radio_list.isChecked():
+                    try:
+                        with open(list_txt_path, 'r', encoding='utf-8') as f:
+                            text_in.setPlainText(f.read().strip())
+                    except Exception as e:
+                        text_in.setPlainText(f"Gagal membaca list.txt: {e}")
+                else:
+                    text_in.clear()
+            
+            radio_list.toggled.connect(toggle_input_mode)
+            radio_manual.toggled.connect(toggle_input_mode)
+            toggle_input_mode()
+
         btn_copy = QPushButton("Buat Prompt & Salin ke Clipboard")
         btn_copy.setObjectName("btnBlue")
 
@@ -679,13 +750,16 @@ class HTMLMergerApp(QMainWindow):
                 QMessageBox.warning(dialog_input, "Peringatan", "Daftar input materi tidak boleh kosong!")
                 return
 
-            # --- KONDISIONAL STRUKTUR PROMPT BERDASARKAN CHECKBOX BAB ---
+            judul_utama_ai = "Judul Dokumen Anda"
+            if self.base_dir:
+                judul_utama_ai = os.path.basename(os.path.normpath(self.base_dir))
+
             if self.cb_group_bab.isChecked():
                 instruksi_struktur = (
                     "Tolong buatkan struktur JSON untuk mengelompokkan file-file HTML tersebut ke dalam BAB "
                     "berdasarkan poin-poin materi di atas. Gunakan format template JSON berikut:\n\n"
                     "{\n"
-                    '  "judul_utama": "Judul Dokumen Anda",\n'
+                    f'  "judul_utama": "{judul_utama_ai}",\n'
                     '  "struktur": {\n'
                     '    "BAB 1: [Nama Poin Materi]": {\n'
                     '      "nama_file1.html": "Judul Sub-materi 1",\n'
@@ -700,7 +774,7 @@ class HTMLMergerApp(QMainWindow):
                     "secara berurutan dengan judul kustom yang lebih rapi berdasarkan daftar poin di atas. "
                     "Gunakan format template JSON berikut:\n\n"
                     "{\n"
-                    '  "judul_utama": "Judul Dokumen Anda",\n'
+                    f'  "judul_utama": "{judul_utama_ai}",\n'
                     '  "struktur": {\n'
                     '    "nama_file1.html": "Judul Kustom Materi 1",\n'
                     '    "nama_file2.html": "Judul Kustom Materi 2"\n'
@@ -708,7 +782,6 @@ class HTMLMergerApp(QMainWindow):
                     "}"
                 )
 
-            # Format template final untuk prompt AI
             prompt = (
                 "Saya sedang menyusun dokumen. Berikut adalah daftar file HTML yang saya miliki:\n"
                 f"{', '.join(file_names)}\n\n"
@@ -719,7 +792,6 @@ class HTMLMergerApp(QMainWindow):
                 "Berikan output HANYA berupa JSON yang valid, tanpa tambahan teks penjelasan, dan tanpa blok kode (```)."
             )
 
-            # Salin teks ke Clipboard sistem
             QApplication.clipboard().setText(prompt)
             QMessageBox.information(
                 dialog_input, 
@@ -731,8 +803,8 @@ class HTMLMergerApp(QMainWindow):
 
         btn_copy.clicked.connect(on_copy)
         dialog_input.exec()
+
     def show_ai_paste_dialog(self):
-        # --- Dialog 2: Paste Hasil AI ---
         dialog_out = QDialog(self)
         dialog_out.setWindowTitle("Langkah 2: Paste Hasil AI")
         dialog_out.setMinimumSize(500, 400)
@@ -752,7 +824,6 @@ class HTMLMergerApp(QMainWindow):
         def on_save():
             ai_result = text_out.toPlainText().strip()
             
-            # Membuang format markdown jika AI membalas dengan blok kode (```json ... ```)
             if ai_result.startswith("```json"):
                 ai_result = ai_result[7:]
             elif ai_result.startswith("```"):
@@ -767,19 +838,15 @@ class HTMLMergerApp(QMainWindow):
                 return
 
             try:
-                # Coba parsing JSON untuk memastikan formatnya valid
                 parsed_json = json.loads(ai_result)
 
-                # Jika valid, tanyakan lokasi simpan kepada user
                 default_path = os.path.join(self.base_dir, "template_ai.json") if self.base_dir else "template_ai.json"
                 save_path, _ = QFileDialog.getSaveFileName(self, "Simpan Template JSON Baru", default_path, "JSON Files (*.json)")
 
                 if save_path:
-                    # Tulis dan simpan sebagai file JSON baru
                     with open(save_path, 'w', encoding='utf-8') as f:
                         json.dump(parsed_json, f, indent=4, ensure_ascii=False)
 
-                    # Secara otomatis muat JSON yang baru di-save ke dalam aplikasi menggunakan method bawaan
                     self._process_json_file(save_path, show_message=True)
                     dialog_out.accept()
 
@@ -815,6 +882,10 @@ class HTMLMergerApp(QMainWindow):
                 self.custom_titles = data
 
             self.lbl_json_status.setText(f"<b><font color='#2980b9'>✓ Aktif: {os.path.basename(file_path)}</font></b>")
+            
+            # Simpan pemuatan JSON ini ke config.json
+            self.save_app_state_to_config()
+            
             if show_message: QMessageBox.information(self, "Berhasil", "Data judul berhasil dimuat!")
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
@@ -822,13 +893,13 @@ class HTMLMergerApp(QMainWindow):
     def set_ui_enabled(self, enabled):
         self.btn_generate_html.setEnabled(enabled)
         self.btn_generate_pdf.setEnabled(enabled)
-        self.btn_create_zip.setEnabled(enabled) # Disable/Enable ZIP button
+        self.btn_create_zip.setEnabled(enabled) 
         self.btn_settings.setEnabled(enabled)
         self.btn_add_folder.setEnabled(enabled)
         self.btn_add_files.setEnabled(enabled)
         self.btn_delete.setEnabled(enabled)
         self.btn_clear.setEnabled(enabled)
-        self.btn_ai_json.setEnabled(enabled) # Tambahan kode baru
+        self.btn_ai_json.setEnabled(enabled) 
 
     def _get_export_options(self, is_pdf):
         cover_type = "none"
@@ -888,7 +959,6 @@ class HTMLMergerApp(QMainWindow):
         self.progress_bar.setValue(val)
         QApplication.processEvents()
 
-    # --- FUNGSI BARU UNTUK ZIP ---
     def create_zip_archive(self):
         if not self.base_dir:
             QMessageBox.warning(self, "Peringatan", "Pilih folder materi terlebih dahulu!")
@@ -908,7 +978,7 @@ class HTMLMergerApp(QMainWindow):
 
         self.set_ui_enabled(False)
         self.progress_bar.show()
-        self.progress_bar.setRange(0, 0) # Loading tanpa batas untuk proses zip
+        self.progress_bar.setRange(0, 0)
         self.progress_bar.setFormat("Sedang membuat file ZIP...")
         QApplication.processEvents()
 
@@ -916,12 +986,10 @@ class HTMLMergerApp(QMainWindow):
             with zipfile.ZipFile(save_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 for root, dirs, files in os.walk(self.base_dir):
                     for file in files:
-                        # Abaikan file .pdf dan file .zip itu sendiri
                         if file.lower().endswith('.pdf') or file == os.path.basename(save_path):
                             continue
                         
                         file_path = os.path.join(root, file)
-                        # Hitung path relatif agar di dalam ZIP foldernya rapi
                         arcname = os.path.relpath(file_path, self.base_dir)
                         zipf.write(file_path, arcname)
 
@@ -944,7 +1012,6 @@ class HTMLMergerApp(QMainWindow):
         self.progress_bar.setRange(0, count)
         self.progress_bar.setFormat("%p%")
 
-        # Menggabungkan base_dir dengan nama file dari list (agar path lengkap saat diproses)
         items = [os.path.join(self.base_dir, self.file_list.item(i).text()) for i in range(count)]
         options = self._get_export_options(is_pdf=False)
         
@@ -970,7 +1037,6 @@ class HTMLMergerApp(QMainWindow):
         self.progress_bar.setRange(0, count)
         self.progress_bar.setFormat("%p%")
 
-        # Menggabungkan base_dir dengan nama file dari list (agar path lengkap saat diproses)
         items = [os.path.join(self.base_dir, self.file_list.item(i).text()) for i in range(count)]
         options = self._get_export_options(is_pdf=True)
         html_content = generate_combined_html(items, options, self._update_progress)
