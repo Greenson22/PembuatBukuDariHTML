@@ -1,5 +1,6 @@
 import os
 import json
+import zipfile
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QListWidget, QFileDialog, 
@@ -22,10 +23,10 @@ class SettingsDialog(QDialog):
         self.cover_file_path = None
         self.cover_image_path = None
         self._is_updating_margins = False
-        self.config_file = "config.json" # File untuk menyimpan konfigurasi
+        self.config_file = "config.json"
         
         self.init_ui()
-        self.load_settings() # Muat pengaturan tersimpan saat dialog dibuat
+        self.load_settings()
 
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -180,9 +181,7 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.cb_toc)
         layout.addWidget(self.cb_page_numbers)
         
-        # --- PERUBAHAN: Menghapus Tombol Tutup Silang, menggantinya dengan Simpan & Default ---
         action_layout = QHBoxLayout()
-        
         self.btn_reset = QPushButton("Kembalikan ke Default")
         self.btn_reset.setObjectName("btnGray")
         
@@ -201,14 +200,11 @@ class SettingsDialog(QDialog):
         self.radio_text_cover.toggled.connect(self.toggle_cover_options)
         self.btn_select_cover.clicked.connect(self.select_cover_file)
         self.btn_select_image.clicked.connect(self.select_cover_image)
-        
-        # Menghubungkan fungsi ke tombol baru
         self.btn_reset.clicked.connect(self.reset_to_default)
         self.btn_save.clicked.connect(self.save_settings)
 
         self.apply_margin_preset()
 
-    # --- FUNGSI BARU UNTUK KONFIGURASI ---
     def save_settings(self):
         config_data = {
             "combo_size": self.combo_size.currentText(),
@@ -231,7 +227,7 @@ class SettingsDialog(QDialog):
         try:
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(config_data, f, indent=4)
-            self.accept() # Tutup dialog
+            self.accept()
         except Exception as e:
             QMessageBox.warning(self, "Gagal", f"Gagal menyimpan pengaturan:\n{str(e)}")
 
@@ -285,7 +281,6 @@ class SettingsDialog(QDialog):
         self.cb_toc.setChecked(True)
         self.cb_page_numbers.setChecked(True)
         
-        # Bersihkan path cover yang mungkin terpilih
         self.cover_file_path = None
         self.cover_image_path = None
         self.lbl_cover_status.setText("Belum ada file dipilih")
@@ -294,7 +289,6 @@ class SettingsDialog(QDialog):
         
         QMessageBox.information(self, "Reset", "Pengaturan telah dikembalikan ke standar bawaan.")
 
-    # --- FUNGSI BAWAAN YANG SUDAH ADA ---
     def create_margin_spinbox(self, label_text, default_value, parent_layout):
         layout = QHBoxLayout()
         layout.setContentsMargins(0,0,10,0)
@@ -353,6 +347,8 @@ class SettingsDialog(QDialog):
         if file:
             self.cover_image_path = file
             self.lbl_image_status.setText(f"<b><font color='#27ae60'>✓ File: {os.path.basename(file)}</font></b>")
+
+
 class HTMLMergerApp(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -437,6 +433,11 @@ class HTMLMergerApp(QMainWindow):
         self.btn_settings = QPushButton("⚙ Pengaturan Dokumen")
         self.btn_settings.setObjectName("btnPurple")
         l_exec.addWidget(self.btn_settings)
+
+        # --- TOMBOL BARU UNTUK ZIP ---
+        self.btn_create_zip = QPushButton("📦 Buat Arsip ZIP (Kecuali PDF)")
+        self.btn_create_zip.setObjectName("btnDarkGray")
+        l_exec.addWidget(self.btn_create_zip)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
@@ -537,6 +538,7 @@ class HTMLMergerApp(QMainWindow):
         self.btn_generate_html.clicked.connect(self.merge_to_html)
         self.btn_generate_pdf.clicked.connect(self.merge_to_pdf)
         self.btn_settings.clicked.connect(self.settings.exec) 
+        self.btn_create_zip.clicked.connect(self.create_zip_archive) # Connect tombol ZIP
         
         self.btn_add_folder.clicked.connect(self.add_folder)
         self.btn_add_files.clicked.connect(self.add_files)
@@ -571,14 +573,18 @@ class HTMLMergerApp(QMainWindow):
                     html_files.append(file_path)
 
             html_files.sort()
-            self.file_list.addItems(html_files)
+            # Hanya tampilkan nama file pada QListWidget
+            file_names_only = [os.path.basename(f) for f in html_files]
+            self.file_list.addItems(file_names_only)
 
     def add_files(self):
         files, _ = QFileDialog.getOpenFileNames(self, "Pilih File HTML", "", "HTML Files (*.html)")
         if files: 
             if not self.base_dir:
                 self.base_dir = os.path.dirname(files[0])
-            self.file_list.addItems(files)
+            # Hanya tampilkan nama file pada QListWidget
+            file_names_only = [os.path.basename(f) for f in files]
+            self.file_list.addItems(file_names_only)
 
     def delete_selected(self):
         for item in self.file_list.selectedItems():
@@ -658,6 +664,7 @@ class HTMLMergerApp(QMainWindow):
     def set_ui_enabled(self, enabled):
         self.btn_generate_html.setEnabled(enabled)
         self.btn_generate_pdf.setEnabled(enabled)
+        self.btn_create_zip.setEnabled(enabled) # Disable/Enable ZIP button
         self.btn_settings.setEnabled(enabled)
         self.btn_add_folder.setEnabled(enabled)
         self.btn_add_files.setEnabled(enabled)
@@ -666,7 +673,7 @@ class HTMLMergerApp(QMainWindow):
 
     def _get_export_options(self, is_pdf):
         cover_type = "none"
-        cover_bg_css = "#ffffff"  # Default latar belakang putih
+        cover_bg_css = "#ffffff" 
         
         if self.settings.radio_html_cover.isChecked(): 
             cover_type = "html"
@@ -674,23 +681,20 @@ class HTMLMergerApp(QMainWindow):
             cover_type = "image"
             if self.settings.cover_image_path:
                 try:
-                    # IMPLEMENTASI OPSI 2: GRADASI VERTIKAL DINAMIS (5 TITIK)
                     from PIL import Image
                     with Image.open(self.settings.cover_image_path) as img:
                         img = img.convert("RGB")
                         w, h = img.size
                         
-                        # Ambil sampel 5 titik di sisi paling kiri gambar (dari atas ke bawah)
-                        c_0 = img.getpixel((0, 0))                       # Atas (0%)
-                        c_25 = img.getpixel((0, int(h * 0.25)))          # 25%
-                        c_50 = img.getpixel((0, int(h * 0.50)))          # Tengah (50%)
-                        c_75 = img.getpixel((0, int(h * 0.75)))          # 75%
-                        c_100 = img.getpixel((0, h - 1))                 # Bawah (100%)
+                        c_0 = img.getpixel((0, 0))                       
+                        c_25 = img.getpixel((0, int(h * 0.25)))          
+                        c_50 = img.getpixel((0, int(h * 0.50)))          
+                        c_75 = img.getpixel((0, int(h * 0.75)))          
+                        c_100 = img.getpixel((0, h - 1))                 
                         
                         def to_hex(rgb):
                             return f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
                             
-                        # Buat CSS linear-gradient yang mengikuti perubahan warna vertikal gambar
                         cover_bg_css = f"linear-gradient(to bottom, {to_hex(c_0)} 0%, {to_hex(c_25)} 25%, {to_hex(c_50)} 50%, {to_hex(c_75)} 75%, {to_hex(c_100)} 100%)"
                         
                 except Exception as e:
@@ -712,7 +716,7 @@ class HTMLMergerApp(QMainWindow):
             "cover_type": cover_type,
             "cover_file_path": self.settings.cover_file_path,
             "cover_image_path": self.settings.cover_image_path,
-            "cover_bg_css": cover_bg_css,  # Key diubah menjadi cover_bg_css
+            "cover_bg_css": cover_bg_css,  
             "bab_style_mode": self.settings.combo_bab_style.currentText(),
             "bab_font_size": self.settings.spin_bab_size.value(),
             "materi_style_text": self.settings.combo_materi_style.currentText(),
@@ -725,6 +729,51 @@ class HTMLMergerApp(QMainWindow):
         self.progress_bar.setValue(val)
         QApplication.processEvents()
 
+    # --- FUNGSI BARU UNTUK ZIP ---
+    def create_zip_archive(self):
+        if not self.base_dir:
+            QMessageBox.warning(self, "Peringatan", "Pilih folder materi terlebih dahulu!")
+            return
+
+        out_name = self.output_name.text().strip()
+        if not out_name:
+            out_name = "Arsip_Materi"
+        if not out_name.endswith(".zip"):
+            out_name += ".zip"
+
+        default_path = os.path.join(self.base_dir, out_name)
+        save_path, _ = QFileDialog.getSaveFileName(self, "Simpan Arsip ZIP", default_path, "ZIP Files (*.zip)")
+
+        if not save_path:
+            return
+
+        self.set_ui_enabled(False)
+        self.progress_bar.show()
+        self.progress_bar.setRange(0, 0) # Loading tanpa batas untuk proses zip
+        self.progress_bar.setFormat("Sedang membuat file ZIP...")
+        QApplication.processEvents()
+
+        try:
+            with zipfile.ZipFile(save_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for root, dirs, files in os.walk(self.base_dir):
+                    for file in files:
+                        # Abaikan file .pdf dan file .zip itu sendiri
+                        if file.lower().endswith('.pdf') or file == os.path.basename(save_path):
+                            continue
+                        
+                        file_path = os.path.join(root, file)
+                        # Hitung path relatif agar di dalam ZIP foldernya rapi
+                        arcname = os.path.relpath(file_path, self.base_dir)
+                        zipf.write(file_path, arcname)
+
+            self.progress_bar.hide()
+            QMessageBox.information(self, "Berhasil", f"File ZIP berhasil dibuat:\n{save_path}")
+        except Exception as e:
+            self.progress_bar.hide()
+            QMessageBox.critical(self, "Error", f"Gagal membuat file ZIP:\n{str(e)}")
+        finally:
+            self.set_ui_enabled(True)
+
     def merge_to_html(self):
         count = self.file_list.count()
         if count == 0:
@@ -734,8 +783,10 @@ class HTMLMergerApp(QMainWindow):
         self.set_ui_enabled(False)
         self.progress_bar.show()
         self.progress_bar.setRange(0, count)
+        self.progress_bar.setFormat("%p%")
 
-        items = [self.file_list.item(i).text() for i in range(count)]
+        # Menggabungkan base_dir dengan nama file dari list (agar path lengkap saat diproses)
+        items = [os.path.join(self.base_dir, self.file_list.item(i).text()) for i in range(count)]
         options = self._get_export_options(is_pdf=False)
         
         html_content = generate_combined_html(items, options, self._update_progress)
@@ -758,8 +809,10 @@ class HTMLMergerApp(QMainWindow):
         self.set_ui_enabled(False)
         self.progress_bar.show()
         self.progress_bar.setRange(0, count)
+        self.progress_bar.setFormat("%p%")
 
-        items = [self.file_list.item(i).text() for i in range(count)]
+        # Menggabungkan base_dir dengan nama file dari list (agar path lengkap saat diproses)
+        items = [os.path.join(self.base_dir, self.file_list.item(i).text()) for i in range(count)]
         options = self._get_export_options(is_pdf=True)
         html_content = generate_combined_html(items, options, self._update_progress)
 
