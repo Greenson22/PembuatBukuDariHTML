@@ -21,6 +21,9 @@ class HTMLMergerApp(QMainWindow):
         self.cover_file_path = None
         self.cover_image_path = None
         self._is_updating_margins = False 
+        
+        # Variabel untuk menyimpan folder pertama kali dipilih
+        self.base_dir = "" 
 
         self.setStyleSheet(get_modern_theme())
         self.init_ui()
@@ -361,6 +364,10 @@ class HTMLMergerApp(QMainWindow):
     def add_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Pilih Folder")
         if folder:
+            # Simpan base_dir jika baru pertama kali memilih
+            if not self.base_dir:
+                self.base_dir = folder
+                
             all_files = os.listdir(folder)
             html_files = []
             for f in all_files:
@@ -383,7 +390,11 @@ class HTMLMergerApp(QMainWindow):
 
     def add_files(self):
         files, _ = QFileDialog.getOpenFileNames(self, "Pilih File HTML", "", "HTML Files (*.html)")
-        if files: self.file_list.addItems(files)
+        if files: 
+            # Simpan base_dir dari folder file pertama jika baru pertama kali memilih
+            if not self.base_dir:
+                self.base_dir = os.path.dirname(files[0])
+            self.file_list.addItems(files)
 
     def delete_selected(self):
         for item in self.file_list.selectedItems():
@@ -396,6 +407,7 @@ class HTMLMergerApp(QMainWindow):
         self.lbl_json_status.setText("Status: Default (Nama File)")
         self.cover_file_path = None
         self.cover_image_path = None
+        self.base_dir = "" # Reset riwayat base_dir
         self.radio_no_cover.setChecked(True)
 
     def export_json_template(self):
@@ -413,14 +425,18 @@ class HTMLMergerApp(QMainWindow):
                 f_name = os.path.basename(self.file_list.item(i).text())
                 template_data["struktur"][f_name] = f_name.replace('.html', '').title()
 
-        save_path, _ = QFileDialog.getSaveFileName(self, "Simpan Template JSON", "template_judul.json", "JSON Files (*.json)")
+        # Gunakan base_dir jika ada, jika tidak, di direktori kerja saat ini
+        default_path = os.path.join(self.base_dir, "template_judul.json") if self.base_dir else "template_judul.json"
+        save_path, _ = QFileDialog.getSaveFileName(self, "Simpan Template JSON", default_path, "JSON Files (*.json)")
+        
         if save_path:
             with open(save_path, 'w', encoding='utf-8') as f:
                 json.dump(template_data, f, indent=4, ensure_ascii=False)
             QMessageBox.information(self, "Berhasil", "Template JSON berhasil disimpan!")
 
     def load_json_titles(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Pilih File JSON", "", "JSON Files (*.json)")
+        start_dir = self.base_dir if self.base_dir else ""
+        file_path, _ = QFileDialog.getOpenFileName(self, "Pilih File JSON", start_dir, "JSON Files (*.json)")
         if file_path: self._process_json_file(file_path, show_message=True)
 
     def _process_json_file(self, file_path, show_message=False):
@@ -508,7 +524,10 @@ class HTMLMergerApp(QMainWindow):
         html_content = generate_combined_html(items, options, self._update_progress)
         
         if html_content:
-            out_file = self.output_name.text() if self.output_name.text().endswith(".html") else self.output_name.text() + ".html"
+            out_name = self.output_name.text() if self.output_name.text().endswith(".html") else self.output_name.text() + ".html"
+            # Gabungkan dengan base_dir agar tersimpan di direktori folder terpilih
+            out_file = os.path.join(self.base_dir, out_name) if self.base_dir else out_name
+            
             with open(out_file, "w", encoding="utf-8") as f:
                 f.write(html_content)
             QMessageBox.information(self, "Berhasil", f"File HTML berhasil dibuat: {out_file}")
@@ -532,7 +551,10 @@ class HTMLMergerApp(QMainWindow):
             self.set_ui_enabled(True)
             return
 
-        out_file = self.output_name.text() if self.output_name.text().endswith(".pdf") else self.output_name.text() + ".pdf"
+        out_name = self.output_name.text() if self.output_name.text().endswith(".pdf") else self.output_name.text() + ".pdf"
+        # Gabungkan dengan base_dir agar tersimpan di direktori folder terpilih
+        out_file = os.path.join(self.base_dir, out_name) if self.base_dir else out_name
+        
         self.progress_bar.setRange(0, 0)
         self.progress_bar.setFormat("Sedang merender PDF...")
 
