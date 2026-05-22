@@ -262,13 +262,9 @@ class HTMLMergerApp(QMainWindow):
         
         self.custom_titles = {}
         self.file_bab_mapping = {}  
-        
-        # Variabel untuk menyimpan folder pertama kali dipilih
         self.base_dir = "" 
         
-        # Inisiasi dialog pengaturan
         self.settings = SettingsDialog(self)
-
         self.setStyleSheet(get_modern_theme())
         self.init_ui()
 
@@ -279,7 +275,6 @@ class HTMLMergerApp(QMainWindow):
         self.main_container = QWidget()
         self.main_container.setObjectName("mainContainer")
         
-        # Layout utama window tanpa margin agar banner bisa full width
         self.main_layout = QVBoxLayout(self.main_container)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
@@ -311,16 +306,12 @@ class HTMLMergerApp(QMainWindow):
         self.right_layout = QVBoxLayout()
         self.right_layout.setSpacing(15)
         
-        # Split rasio layout 5:5 sesuai gambar referensi
         self.content_layout.addLayout(self.left_layout, stretch=5) 
         self.content_layout.addLayout(self.right_layout, stretch=5) 
         
-        # Masukkan content_widget ke dalam main_layout
         self.main_layout.addWidget(self.content_widget)
 
         # ================= BAGIAN KIRI =================
-        
-        # -- Card 1: Proses Eksekusi --
         self.card_exec = QFrame()
         self.card_exec.setProperty("class", "Card")
         l_exec = QVBoxLayout(self.card_exec)
@@ -356,7 +347,6 @@ class HTMLMergerApp(QMainWindow):
         
         self.left_layout.addWidget(self.card_exec)
 
-        # -- Card 2: Judul Kustom & JSON --
         self.card_json = QFrame()
         self.card_json.setProperty("class", "Card")
         l_json = QVBoxLayout(self.card_json)
@@ -366,7 +356,7 @@ class HTMLMergerApp(QMainWindow):
         hbox_json_title = QHBoxLayout()
         lbl_json = QLabel("Judul Kustom & Struktur BAB")
         lbl_json.setProperty("class", "CardTitle")
-        self.cb_group_bab = QCheckBox() # Berperan sebagai switch di kanan
+        self.cb_group_bab = QCheckBox()
         self.cb_group_bab.setChecked(True)
         hbox_json_title.addWidget(lbl_json)
         hbox_json_title.addStretch()
@@ -387,7 +377,6 @@ class HTMLMergerApp(QMainWindow):
         
         self.left_layout.addWidget(self.card_json)
         
-        # -- Card 3: Status Default --
         self.card_status = QFrame()
         self.card_status.setProperty("class", "Card")
         l_status = QVBoxLayout(self.card_status)
@@ -399,8 +388,6 @@ class HTMLMergerApp(QMainWindow):
         self.left_layout.addStretch()
 
         # ================= BAGIAN KANAN =================
-        
-        # -- Card 1: Manajemen File --
         self.card_file = QFrame()
         self.card_file.setProperty("class", "Card")
         l_file = QVBoxLayout(self.card_file)
@@ -431,7 +418,6 @@ class HTMLMergerApp(QMainWindow):
         
         self.right_layout.addWidget(self.card_file)
         
-        # -- Card 2: List File --
         self.card_list = QFrame()
         self.card_list.setProperty("class", "Card")
         l_list = QVBoxLayout(self.card_list)
@@ -449,7 +435,6 @@ class HTMLMergerApp(QMainWindow):
         
         self.right_layout.addWidget(self.card_list)
 
-        # Signal connections
         self.btn_generate_html.clicked.connect(self.merge_to_html)
         self.btn_generate_pdf.clicked.connect(self.merge_to_pdf)
         self.btn_settings.clicked.connect(self.settings.exec) 
@@ -590,17 +575,16 @@ class HTMLMergerApp(QMainWindow):
             cover_type = "image"
             if self.settings.cover_image_path:
                 try:
-                    # Menggunakan PIL untuk membaca gambar dan mengekstrak rata-rata warnanya
+                    # IMPLEMENTASI OPSI 1: EDGE-COLOR MATCHING
                     from PIL import Image
                     with Image.open(self.settings.cover_image_path) as img:
                         img = img.convert("RGB")
-                        # Mengubah resolusi gambar menjadi 1x1 piksel (untuk mendapat nilai tengah rata-rata)
-                        img_small = img.resize((1, 1))
-                        dom_color = img_small.getpixel((0, 0))
+                        # Mengambil sampel piksel persis di ujung kiri atas gambar (koordinat 0,0)
+                        edge_pixel_color = img.getpixel((0, 0))
                         # Konversi RGB ke HEX Color
-                        cover_bg_color = f"#{dom_color[0]:02x}{dom_color[1]:02x}{dom_color[2]:02x}"
+                        cover_bg_color = f"#{edge_pixel_color[0]:02x}{edge_pixel_color[1]:02x}{edge_pixel_color[2]:02x}"
                 except Exception as e:
-                    print(f"Gagal mengambil warna dominan dari gambar cover: {e}")
+                    print(f"Gagal mengambil warna ujung dari gambar cover: {e}")
                     
         elif self.settings.radio_text_cover.isChecked(): 
             cover_type = "text"
@@ -618,7 +602,7 @@ class HTMLMergerApp(QMainWindow):
             "cover_type": cover_type,
             "cover_file_path": self.settings.cover_file_path,
             "cover_image_path": self.settings.cover_image_path,
-            "cover_bg_color": cover_bg_color,  # Menambahkan opsi warna background
+            "cover_bg_color": cover_bg_color,
             "bab_style_mode": self.settings.combo_bab_style.currentText(),
             "bab_font_size": self.settings.spin_bab_size.value(),
             "materi_style_text": self.settings.combo_materi_style.currentText(),
