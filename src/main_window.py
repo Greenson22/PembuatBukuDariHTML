@@ -11,10 +11,7 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
 from styles import get_modern_theme
 from pdf_worker import PDFWorker
 from html_merger import generate_combined_html
-
-# Tambahkan import kelas SettingsDialog dari file yang baru saja kita buat
 from settings_dialog import SettingsDialog
-
 
 class HTMLMergerApp(QMainWindow):
     def __init__(self):
@@ -91,6 +88,10 @@ class HTMLMergerApp(QMainWindow):
         self.btn_create_zip = QPushButton("📦 Buat Arsip ZIP (Kecuali PDF)")
         self.btn_create_zip.setObjectName("btnDarkGray")
         l_exec.addWidget(self.btn_create_zip)
+
+        self.btn_import_zip = QPushButton("🗂️ Import ZIP & Auto PDF")
+        self.btn_import_zip.setObjectName("btnBlue")
+        l_exec.addWidget(self.btn_import_zip)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
@@ -214,6 +215,7 @@ class HTMLMergerApp(QMainWindow):
         self.btn_generate_pdf.clicked.connect(self.merge_to_pdf)
         self.btn_settings.clicked.connect(self.settings.exec) 
         self.btn_create_zip.clicked.connect(self.create_zip_archive) 
+        self.btn_import_zip.clicked.connect(self.import_zip_and_execute)
         
         self.btn_add_folder.clicked.connect(self.add_folder)
         self.btn_add_files.clicked.connect(self.add_files)
@@ -229,6 +231,102 @@ class HTMLMergerApp(QMainWindow):
 
         self.load_app_state_from_config()
         self.cb_group_bab.toggled.connect(self.save_app_state_to_config)
+
+    def import_zip_and_execute(self):
+        zip_path, _ = QFileDialog.getOpenFileName(self, "Pilih File ZIP Materi", "", "ZIP Files (*.zip)")
+        if not zip_path:
+            return
+
+        extract_dir = os.path.join(os.path.dirname(zip_path), os.path.basename(zip_path).replace('.zip', '_extracted'))
+        
+        self.set_ui_enabled(False)
+        self.progress_bar.show()
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setFormat("Mengekstrak ZIP...")
+        QApplication.processEvents()
+
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(extract_dir)
+        except Exception as e:
+            self.progress_bar.hide()
+            self.set_ui_enabled(True)
+            QMessageBox.critical(self, "Error", f"Gagal mengekstrak ZIP:\n{e}")
+            return
+            
+        self.progress_bar.hide()
+        self.set_ui_enabled(True)
+
+        self.clear_all()
+        self.base_dir = extract_dir
+        self.lbl_base_path.setText(f"Path Utama: {self.base_dir}")
+        
+        files_in_dir = os.listdir(extract_dir)
+        files_lower = [f.lower() for f in files_in_dir]
+        
+        # 1. Pengecekan Cover
+        cover_found = False
+        for f in files_in_dir:
+            f_lower = f.lower()
+            file_path = os.path.join(extract_dir, f)
+            if f_lower == 'cover.html':
+                self.settings.radio_html_cover.setChecked(True)
+                self.settings.cover_file_path = file_path
+                self.settings.lbl_cover_status.setText(f"<b><font color='#27ae60'>✓ File: {f}</font></b>")
+                cover_found = True
+                break
+            elif f_lower.startswith('cover.') and f_lower.endswith(('.png', '.jpg', '.jpeg', '.bmp', '.pdf')):
+                self.settings.radio_image_cover.setChecked(True)
+                self.settings.cover_image_path = file_path
+                self.settings.lbl_image_status.setText(f"<b><font color='#27ae60'>✓ File: {f}</font></b>")
+                cover_found = True
+                break
+
+        if not cover_found:
+            self.settings.radio_no_cover.setChecked(True)
+
+        # 2. Pengecekan JSON
+        json_found = False
+        json_file = None
+        for f in files_in_dir:
+            if f.lower() in ["meta.json", "template_judul.json", "template_ai.json"]:
+                json_file = os.path.join(extract_dir, f)
+                json_found = True
+                break
+                
+        if json_file:
+            self._process_json_file(json_file, show_message=False)
+
+        # 3. Pengecekan List & HTML
+        list_found = 'list.txt' in files_lower
+        
+        html_files = []
+        for f in files_in_dir:
+            f_lower = f.lower()
+            if f_lower.endswith('.html') and not f_lower.startswith('cover'):
+                html_files.append(f)
+                
+        html_files.sort()
+        
+        missing = []
+        if not cover_found: missing.append("- Cover (cover.html atau cover bergambar)")
+        if not json_found: missing.append("- File Struktur JSON")
+        if not list_found: missing.append("- File list.txt")
+        if not html_files: missing.append("- File HTML Materi (Kosong)")
+        
+        self.file_list.addItems(html_files)
+        self.output_name.setText(os.path.basename(zip_path).replace('.zip', ''))
+        
+        if missing:
+            msg = "Pengecekan Komponen: Terdapat komponen yang kurang dari file ZIP:\n\n" + "\n".join(missing)
+            msg += "\n\nApakah Anda tetap ingin memprosesnya menjadi PDF?"
+            reply = QMessageBox.question(self, "Peringatan Kelengkapan", msg, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            
+            if reply == QMessageBox.StandardButton.Yes and html_files:
+                self.merge_to_pdf()
+        else:
+            QMessageBox.information(self, "Komponen Lengkap", "Pengecekan Berhasil!\n\nSemua komponen (Cover, JSON, List, dan HTML) lengkap. Proses pembuatan PDF akan langsung dijalankan secara otomatis.")
+            self.merge_to_pdf()
 
     def delete_other_files(self):
         if not self.base_dir:
@@ -715,6 +813,7 @@ class HTMLMergerApp(QMainWindow):
         self.btn_generate_html.setEnabled(enabled)
         self.btn_generate_pdf.setEnabled(enabled)
         self.btn_create_zip.setEnabled(enabled) 
+        self.btn_import_zip.setEnabled(enabled)
         self.btn_settings.setEnabled(enabled)
         self.btn_add_folder.setEnabled(enabled)
         self.btn_add_files.setEnabled(enabled)
